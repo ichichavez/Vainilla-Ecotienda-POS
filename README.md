@@ -24,27 +24,26 @@ Aplicación de escritorio para gestión de ventas, stock, clientes y caja.
 | Etiquetas / Catálogo | PDF de etiquetas y catálogo |
 | Usuarios | Roles y permisos (superadmin, vendedor, usuario) |
 
-## Instalación
+## Instalación en Windows
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+1. Instalá [Python 3.10+](https://www.python.org/downloads/) (marcá **Add python.exe to PATH**) y [Git](https://git-scm.com/download/win).
+2. Abrí PowerShell o CMD y cloná el repo:
+
+```bat
+git clone https://github.com/ichichavez/Vainilla-Ecotienda-POS.git
+cd Vainilla-Ecotienda-POS
 ```
 
-## Uso
+3. Doble clic en estos scripts, en orden:
 
-```bash
-python main.py
-```
+| Script | Qué hace |
+|--------|----------|
+| `instalar.bat` | Crea el entorno e instala dependencias |
+| `crear_usuario.bat` | Crea el admin (editá antes `setup_user.py`) |
+| `iniciar.bat` | Abre el punto de venta |
+| `actualizar.bat` | Trae cambios de GitHub (`git pull`) |
 
-La primera vez se inicializa la base SQLite. Para crear un usuario administrador:
-
-```bash
-python setup_user.py
-```
-
-Editá `username` y `password` en `setup_user.py` antes de ejecutarlo (no subas contraseñas reales al repo).
+La base SQLite (`ventas.db`) se crea sola y **no** se pisa al actualizar.
 
 ## Estructura
 
