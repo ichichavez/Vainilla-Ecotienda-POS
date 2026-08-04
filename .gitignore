@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.env
+
+# Local database and media
+ventas.db
+ventas.db-*
+assets/productos/*
+
+# IDE / tools
+.claude/
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Exports / temp
+*.xlsx
+!requirements.txt
+*.pdf
+*.log
