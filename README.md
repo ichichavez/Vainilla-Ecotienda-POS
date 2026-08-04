@@ -41,6 +41,7 @@ cd Vainilla-Ecotienda-POS
 | `instalar.bat` | Crea el entorno e instala dependencias |
 | `crear_usuario.bat` | Crea el admin (editá antes `setup_user.py`) |
 | `iniciar.bat` | Abre el punto de venta |
+| `crear_acceso_directo.bat` | Crea un acceso directo en el Escritorio |
 | `actualizar.bat` | Trae cambios de GitHub (`git pull`) |
 
 La base SQLite (`ventas.db`) se crea sola y **no** se pisa al actualizar.
