@@ -374,7 +374,7 @@ class ProductosView(ctk.CTkFrame):
         price_frame = ctk.CTkFrame(row, fg_color="transparent")
         price_frame.grid(row=0, column=2, padx=8, pady=8, rowspan=2)
 
-        ctk.CTkLabel(price_frame, text=f"${p['precio']:,.2f}",
+        ctk.CTkLabel(price_frame, text=f"Gs. {p['precio']:,.2f}",
                      font=ctk.CTkFont(size=13, weight="bold")).pack()
 
         costo = p.get("precio_costo", 0) or 0

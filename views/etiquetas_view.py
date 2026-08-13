@@ -156,7 +156,7 @@ class EtiquetasView(ctk.CTkFrame):
             ctk.CTkLabel(name_frame, text=" · ".join(parts),
                          text_color="gray60", font=ctk.CTkFont(size=10)).pack(anchor="w")
 
-        ctk.CTkLabel(row, text=f"${p['precio']:,.2f}",
+        ctk.CTkLabel(row, text=f"Gs. {p['precio']:,.2f}",
                      font=ctk.CTkFont(size=12, weight="bold"), width=80).grid(
             row=0, column=3, padx=8, pady=10)
 

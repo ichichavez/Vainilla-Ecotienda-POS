@@ -367,7 +367,7 @@ class NuevaVentaView(ctk.CTkFrame):
         self._mixto_frame.grid_columnconfigure(1, weight=1)
         self._mixto_frame.grid_columnconfigure(3, weight=1)
 
-        ctk.CTkLabel(self._mixto_frame, text="Efectivo $",
+        ctk.CTkLabel(self._mixto_frame, text="Efectivo Gs.",
                      font=ctk.CTkFont(size=12)).grid(
             row=0, column=0, padx=(0, 4), pady=4, sticky="w")
         self._ef_var = ctk.StringVar(value="0")
@@ -376,11 +376,11 @@ class NuevaVentaView(ctk.CTkFrame):
         self._ef_entry.grid(row=0, column=1, padx=(0, 10), pady=4, sticky="ew")
         self._ef_var.trace_add("write", lambda *_: self._recalc_transferencia())
 
-        ctk.CTkLabel(self._mixto_frame, text="Transferencia $",
+        ctk.CTkLabel(self._mixto_frame, text="Transferencia Gs.",
                      font=ctk.CTkFont(size=12)).grid(
             row=0, column=2, padx=(0, 4), pady=4, sticky="w")
         self._tr_lbl = ctk.CTkLabel(
-            self._mixto_frame, text="$0.00",
+            self._mixto_frame, text="Gs. 0.00",
             font=ctk.CTkFont(size=12, weight="bold"))
         self._tr_lbl.grid(row=0, column=3, padx=4, pady=4, sticky="w")
 
@@ -388,7 +388,7 @@ class NuevaVentaView(ctk.CTkFrame):
 
         # ── Total ──
         self._total_lbl = ctk.CTkLabel(
-            frame, text="Total: $0.00",
+            frame, text="Total: Gs. 0.00",
             font=ctk.CTkFont(size=18, weight="bold")
         )
         self._total_lbl.grid(row=3, column=0, padx=16, pady=8)
@@ -510,7 +510,7 @@ class NuevaVentaView(ctk.CTkFrame):
                      font=ctk.CTkFont(size=12), anchor="w").grid(
             row=0, column=1, pady=10, sticky="w")
 
-        ctk.CTkLabel(row, text=f"${p['precio']:,.2f}",
+        ctk.CTkLabel(row, text=f"Gs. {p['precio']:,.2f}",
                      font=ctk.CTkFont(size=12, weight="bold")).grid(
             row=0, column=2, padx=8, pady=10)
 
@@ -559,7 +559,7 @@ class NuevaVentaView(ctk.CTkFrame):
             ctk.CTkLabel(self._cart_scroll, text="El carrito está vacío.",
                          text_color="gray60").pack(pady=20)
 
-        self._total_lbl.configure(text=f"Total: ${total:,.2f}")
+        self._total_lbl.configure(text=f"Total: Gs. {total:,.2f}")
 
     def _make_cart_row(self, idx: int, item: dict):
         p = item["producto"]
@@ -591,7 +591,7 @@ class NuevaVentaView(ctk.CTkFrame):
             row=0, column=2, padx=2, sticky="w")
 
         ctk.CTkLabel(controls,
-                     text=f"${subtotal:,.2f}",
+                     text=f"Gs. {subtotal:,.2f}",
                      font=ctk.CTkFont(size=11, weight="bold")).grid(
             row=0, column=3, padx=8)
 
@@ -637,7 +637,7 @@ class NuevaVentaView(ctk.CTkFrame):
             ef = float(self._ef_var.get().replace(",", "."))
             tr = total - ef
             self._tr_lbl.configure(
-                text=f"${tr:,.2f}",
+                text=f"Gs. {tr:,.2f}",
                 text_color="gray60" if tr < 0 else ("gray10", "gray90"),
             )
         except ValueError:
@@ -679,13 +679,13 @@ class NuevaVentaView(ctk.CTkFrame):
                 messagebox.showwarning(
                     "Error",
                     f"Los montos no pueden ser negativos.\n"
-                    f"Efectivo: ${monto_ef:,.2f}  |  Transferencia: ${monto_tr:,.2f}",
+                    f"Efectivo: Gs. {monto_ef:,.2f}  |  Transferencia: Gs. {monto_tr:,.2f}",
                     parent=self)
                 return
             detalle_pago = (
                 f"Forma de pago: mixto\n"
-                f"  · Efectivo:       ${monto_ef:,.2f}\n"
-                f"  · Transferencia:  ${monto_tr:,.2f}"
+                f"  · Efectivo:       Gs. {monto_ef:,.2f}\n"
+                f"  · Transferencia:  Gs. {monto_tr:,.2f}"
             )
         else:
             detalle_pago = f"Forma de pago: {forma}"
@@ -694,7 +694,7 @@ class NuevaVentaView(ctk.CTkFrame):
             "Confirmar venta",
             f"Cliente: {' '.join(filter(None, [self.cliente['nombre'], self.cliente.get('apellido', '')]))}\n"
             f"{detalle_pago}\n"
-            f"Total: ${total:,.2f}\n\n¿Confirmar?",
+            f"Total: Gs. {total:,.2f}\n\n¿Confirmar?",
             parent=self
         )
         if not confirm:

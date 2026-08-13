@@ -59,7 +59,7 @@ class DespachoDialog(ctk.CTkToplevel):
                 parts.append(f"T:{p['talle']}")
             if p.get("color"):
                 parts.append(p["color"])
-            label = f"  {' · '.join(parts)}  (x{p['cantidad']})  — ${p['precio_unitario'] * p['cantidad']:,.2f}"
+            label = f"  {' · '.join(parts)}  (x{p['cantidad']})  — Gs. {p['precio_unitario'] * p['cantidad']:,.2f}"
             ctk.CTkCheckBox(scroll, text=label, variable=var).pack(
                 anchor="w", pady=3)
 
@@ -469,7 +469,7 @@ class ClienteDetalleDialog(ctk.CTkToplevel):
                          font=ctk.CTkFont(size=12)).grid(
                 row=0, column=1, padx=8, pady=8, rowspan=2)
             ctk.CTkLabel(row,
-                         text=f"${p['precio_unitario'] * p['cantidad']:,.2f}",
+                         text=f"Gs. {p['precio_unitario'] * p['cantidad']:,.2f}",
                          font=ctk.CTkFont(size=12, weight="bold")).grid(
                 row=0, column=2, padx=12, pady=8, rowspan=2)
 
@@ -512,7 +512,7 @@ class ClienteDetalleDialog(ctk.CTkToplevel):
         ctk.CTkLabel(card, text=v["fecha"],
                      text_color="gray60").grid(
             row=0, column=1, padx=8, pady=(8, 2), sticky="w")
-        ctk.CTkLabel(card, text=f"${v['total']:,.2f}  ({v['forma_pago']})",
+        ctk.CTkLabel(card, text=f"Gs. {v['total']:,.2f}  ({v['forma_pago']})",
                      font=ctk.CTkFont(size=12, weight="bold")).grid(
             row=0, column=2, padx=12, pady=(8, 2))
 
@@ -558,7 +558,7 @@ class ClienteDetalleDialog(ctk.CTkToplevel):
         if d.get("direccion_envio"):
             extra_parts.append(f"Dirección: {d['direccion_envio']}")
         if d.get("costo_envio"):
-            extra_parts.append(f"Costo envío: ${d['costo_envio']:,.2f}")
+            extra_parts.append(f"Costo envío: Gs. {d['costo_envio']:,.2f}")
         if d.get("notas"):
             extra_parts.append(f"Nota: {d['notas']}")
 

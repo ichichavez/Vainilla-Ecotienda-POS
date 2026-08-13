@@ -49,9 +49,9 @@ class CajaView(ctk.CTkFrame):
         for i in range(3):
             cards.grid_columnconfigure(i, weight=1)
 
-        self._card_efectivo      = self._make_card(cards, "Efectivo",      "$0.00", 0, "#2d6a4f")
-        self._card_transferencia = self._make_card(cards, "Transferencia", "$0.00", 1, "#1d3557")
-        self._card_total         = self._make_card(cards, "Total general", "$0.00", 2, "#4a4e69")
+        self._card_efectivo      = self._make_card(cards, "Efectivo",      "Gs. 0.00", 0, "#2d6a4f")
+        self._card_transferencia = self._make_card(cards, "Transferencia", "Gs. 0.00", 1, "#1d3557")
+        self._card_total         = self._make_card(cards, "Total general", "Gs. 0.00", 2, "#4a4e69")
 
         # Sales list
         list_label = ctk.CTkFrame(self, fg_color="transparent")
@@ -93,9 +93,9 @@ class CajaView(ctk.CTkFrame):
 
         # Update summary cards
         totales = venta_model.get_totales_by_date(fecha)
-        self._card_efectivo.configure(text=f"${totales['efectivo']:,.2f}")
-        self._card_transferencia.configure(text=f"${totales['transferencia']:,.2f}")
-        self._card_total.configure(text=f"${totales['total_general']:,.2f}")
+        self._card_efectivo.configure(text=f"Gs. {totales['efectivo']:,.2f}")
+        self._card_transferencia.configure(text=f"Gs. {totales['transferencia']:,.2f}")
+        self._card_total.configure(text=f"Gs. {totales['total_general']:,.2f}")
 
         cantidad = totales["cantidad"]
         self._count_label.configure(
@@ -147,8 +147,8 @@ class CajaView(ctk.CTkFrame):
         detail_parts = [items_text]
         if forma == "mixto":
             detail_parts.append(
-                f"ef ${v['monto_efectivo']:,.2f}  /  "
-                f"transf ${v['monto_transferencia']:,.2f}"
+                f"ef Gs. {v['monto_efectivo']:,.2f}  /  "
+                f"transf Gs. {v['monto_transferencia']:,.2f}"
             )
         ctk.CTkLabel(card, text="   ".join(detail_parts),
                      text_color="gray60", font=ctk.CTkFont(size=11),
@@ -156,6 +156,6 @@ class CajaView(ctk.CTkFrame):
             row=1, column=1, padx=4, pady=(0, 10), sticky="w")
 
         # Total
-        ctk.CTkLabel(card, text=f"${v['total']:,.2f}",
+        ctk.CTkLabel(card, text=f"Gs. {v['total']:,.2f}",
                      font=ctk.CTkFont(size=16, weight="bold")).grid(
             row=0, column=2, padx=16, pady=12, rowspan=2)

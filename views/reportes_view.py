@@ -180,7 +180,7 @@ class ReportesView(ctk.CTkFrame):
         self._caja_preview.load(headers, rows)
         total = sum(r[6] for r in rows) if rows else 0
         self._caja_info.configure(
-            text=f"{len(rows)} venta(s) — Total: ${total:,.2f}"
+            text=f"{len(rows)} venta(s) — Total: Gs. {total:,.2f}"
         )
 
     def _export_caja_csv(self):
@@ -274,7 +274,7 @@ class ReportesView(ctk.CTkFrame):
         data_rows = [r for r in rows if r[0] != "TOTAL"]
         total = sum(r[6] for r in data_rows)
         self._rango_info.configure(
-            text=f"{len(data_rows)} venta(s) — Total: ${total:,.2f}"
+            text=f"{len(data_rows)} venta(s) — Total: Gs. {total:,.2f}"
         )
 
     def _export_rango_csv(self):
@@ -433,7 +433,7 @@ class ReportesView(ctk.CTkFrame):
         self._comp_preview.load(headers, rows)
         total = sum(r[7] for r in rows)
         self._comp_info.configure(
-            text=f"{len(rows)} item(s) — Total: ${total:,.2f}"
+            text=f"{len(rows)} item(s) — Total: Gs. {total:,.2f}"
         )
 
     def _export_comp_csv(self):
@@ -490,7 +490,7 @@ class ReportesView(ctk.CTkFrame):
         activos_only = not self._mrg_inactivos.get()
         productos = producto_model.get_all(activos_only=activos_only)
         headers = ["ID", "Nombre", "Categoría", "Talle", "Color",
-                   "Costo", "PVP", "Margen $", "Margen %"]
+                   "Costo", "PVP", "Margen Gs.", "Margen %"]
         rows = []
         for p in productos:
             costo  = p.get("precio_costo", 0) or 0
@@ -593,10 +593,10 @@ class ReportesView(ctk.CTkFrame):
         hasta = self._gasto_hasta.get() or _today()
         totales = gasto_model.get_totales_by_range(desde, hasta)
         cat_summary = "   ".join(
-            f"{t['categoria']}: ${t['total']:,.2f}" for t in totales
+            f"{t['categoria']}: Gs. {t['total']:,.2f}" for t in totales
         )
         self._gasto_info.configure(
-            text=f"{len(data_rows)} gasto(s) — Total: ${total:,.2f}   {cat_summary}"
+            text=f"{len(data_rows)} gasto(s) — Total: Gs. {total:,.2f}   {cat_summary}"
         )
 
     def _export_gasto_csv(self):

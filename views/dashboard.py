@@ -33,9 +33,9 @@ class DashboardView(ctk.CTkFrame):
         for i in range(4):
             cards_frame.grid_columnconfigure(i, weight=1)
 
-        self._card_efectivo      = self._make_card(cards_frame, "Efectivo hoy",      "$0.00", 0, theme.CARD_EFECTIVO)
-        self._card_transferencia = self._make_card(cards_frame, "Transferencia hoy", "$0.00", 1, theme.CARD_TRANSFERENCIA)
-        self._card_total         = self._make_card(cards_frame, "Total del día",      "$0.00", 2, theme.CARD_TOTAL)
+        self._card_efectivo      = self._make_card(cards_frame, "Efectivo hoy",      "Gs. 0.00", 0, theme.CARD_EFECTIVO)
+        self._card_transferencia = self._make_card(cards_frame, "Transferencia hoy", "Gs. 0.00", 1, theme.CARD_TRANSFERENCIA)
+        self._card_total         = self._make_card(cards_frame, "Total del día",      "Gs. 0.00", 2, theme.CARD_TOTAL)
         self._card_ventas        = self._make_card(cards_frame, "Ventas del día",     "0",     3, theme.CARD_VENTAS)
 
         # Pending clients section
@@ -71,9 +71,9 @@ class DashboardView(ctk.CTkFrame):
         self._date_label.configure(text=f"Hoy: {today}")
 
         totales = venta_model.get_totales_by_date(today)
-        self._card_efectivo.configure(text=f"${totales['efectivo']:,.2f}")
-        self._card_transferencia.configure(text=f"${totales['transferencia']:,.2f}")
-        self._card_total.configure(text=f"${totales['total_general']:,.2f}")
+        self._card_efectivo.configure(text=f"Gs. {totales['efectivo']:,.2f}")
+        self._card_transferencia.configure(text=f"Gs. {totales['transferencia']:,.2f}")
+        self._card_total.configure(text=f"Gs. {totales['total_general']:,.2f}")
         self._card_ventas.configure(text=str(totales["cantidad"]))
 
         self._load_pending_clients()

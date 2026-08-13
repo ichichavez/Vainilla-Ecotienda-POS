@@ -66,7 +66,7 @@ def export_catalog_html(
                 <div class="product-name">{nombre}</div>
                 <div class="product-detail">{detail_str}</div>
                 {'<div class="product-desc">' + desc + '</div>' if desc else ''}
-                <div class="product-price">${precio:,.0f}</div>
+                <div class="product-price">Gs. {precio:,.0f}</div>
                 {wa_btn}
             </div>
         </div>"""

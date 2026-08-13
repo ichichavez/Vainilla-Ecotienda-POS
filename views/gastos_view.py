@@ -373,9 +373,9 @@ class GastosView(ctk.CTkFrame):
         totales = gasto_model.get_totales_by_range(desde, hasta)
         if cat_f and cat_f != "(Todas)":
             totales = [t for t in totales if t["categoria"] == cat_f]
-        summary_parts = [f"Total: ${total:,.2f}"]
+        summary_parts = [f"Total: Gs. {total:,.2f}"]
         for t in totales:
-            summary_parts.append(f"{t['categoria']}: ${t['total']:,.2f}")
+            summary_parts.append(f"{t['categoria']}: Gs. {t['total']:,.2f}")
         self._summary_label.configure(text="   |   ".join(summary_parts))
 
     def _make_row(self, g: dict):
@@ -401,7 +401,7 @@ class GastosView(ctk.CTkFrame):
                      anchor="w", font=ctk.CTkFont(size=12)).grid(
             row=0, column=2, padx=8, pady=10, sticky="w")
 
-        ctk.CTkLabel(row, text=f"${g['monto']:,.2f}",
+        ctk.CTkLabel(row, text=f"Gs. {g['monto']:,.2f}",
                      font=ctk.CTkFont(size=13, weight="bold")).grid(
             row=0, column=3, padx=8, pady=10)
 

@@ -166,7 +166,7 @@ class CatalogoView(ctk.CTkFrame):
                 row=1, column=1, padx=4, pady=(0, 10), sticky="w")
 
         # Price
-        ctk.CTkLabel(card, text=f"${p['precio']:,.2f}",
+        ctk.CTkLabel(card, text=f"Gs. {p['precio']:,.2f}",
                      font=ctk.CTkFont(size=13, weight="bold")).grid(
             row=0, column=2, padx=12, pady=10, rowspan=2)
 

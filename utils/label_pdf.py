@@ -104,7 +104,7 @@ def _make_label(prod: dict, col_w: float) -> list:
     if parts:
         content.append(Paragraph(" · ".join(parts), detail_style))
 
-    content.append(Paragraph(f"${precio:,.0f}", price_style))
+    content.append(Paragraph(f"Gs. {precio:,.0f}", price_style))
 
     if codigo:
         try:

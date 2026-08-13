@@ -210,7 +210,7 @@ class ComprasView(ctk.CTkFrame):
         self._cart_scroll.grid_columnconfigure(0, weight=1)
 
         self._total_lbl = ctk.CTkLabel(
-            frame, text="Total: $0.00",
+            frame, text="Total: Gs. 0.00",
             font=ctk.CTkFont(size=18, weight="bold")
         )
         self._total_lbl.grid(row=2, column=0, padx=16, pady=8)
@@ -322,7 +322,7 @@ class ComprasView(ctk.CTkFrame):
             ctk.CTkLabel(self._cart_scroll, text="Sin items.",
                          text_color="gray60").pack(pady=20)
 
-        self._total_lbl.configure(text=f"Total: ${total:,.2f}")
+        self._total_lbl.configure(text=f"Total: Gs. {total:,.2f}")
 
     def _make_cart_row(self, idx: int, item: dict):
         p = item["producto"]
@@ -345,9 +345,9 @@ class ComprasView(ctk.CTkFrame):
         info.grid(row=1, column=0, padx=8, pady=(0, 8), sticky="ew")
         info.grid_columnconfigure(2, weight=1)
 
-        ctk.CTkLabel(info, text=f"x{qty}  @  ${precio:,.2f}").grid(
+        ctk.CTkLabel(info, text=f"x{qty}  @  Gs. {precio:,.2f}").grid(
             row=0, column=0, padx=4)
-        ctk.CTkLabel(info, text=f"= ${subtotal:,.2f}",
+        ctk.CTkLabel(info, text=f"= Gs. {subtotal:,.2f}",
                      font=ctk.CTkFont(weight="bold")).grid(
             row=0, column=1, padx=8)
 
@@ -375,7 +375,7 @@ class ComprasView(ctk.CTkFrame):
         confirm = messagebox.askyesno(
             "Confirmar compra",
             f"Proveedor: {proveedor or '(sin especificar)'}\n"
-            f"Total: ${total:,.2f}\n"
+            f"Total: Gs. {total:,.2f}\n"
             f"Items: {len(self.carrito)}\n\n"
             f"¿Confirmar? El stock se incrementará.",
             parent=self
