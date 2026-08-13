@@ -4,6 +4,7 @@ import customtkinter as ctk
 
 import models.producto as producto_model
 from utils.label_pdf import generate_labels_pdf
+from utils.ui import debounce
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -19,6 +20,7 @@ class EtiquetasView(ctk.CTkFrame):
         self._productos: list[dict] = []
         self._check_vars: dict[int, ctk.BooleanVar] = {}
         self._cant_vars:  dict[int, ctk.IntVar] = {}
+        self._search_after = None
         self._build_ui()
 
     def _build_ui(self):
@@ -58,7 +60,10 @@ class EtiquetasView(ctk.CTkFrame):
         ctk.CTkEntry(search_frame, textvariable=self._search_var,
                      placeholder_text="Buscar producto...").grid(
             row=0, column=0, padx=(0, 8), sticky="ew")
-        self._search_var.trace_add("write", lambda *_: self._load())
+        self._search_var.trace_add(
+            "write",
+            lambda *_: debounce(self, "_search_after", 250, self._load),
+        )
 
         self._info_label = ctk.CTkLabel(filter_row, text="0 etiquetas seleccionadas",
                                          text_color="gray60",
@@ -89,9 +94,9 @@ class EtiquetasView(ctk.CTkFrame):
     def _load(self):
         texto = self._search_var.get().strip()
         if texto:
-            self._productos = producto_model.search(texto, activos_only=True)
+            self._productos = producto_model.search(texto, activos_only=True, limit=150)
         else:
-            self._productos = producto_model.get_all(activos_only=True)
+            self._productos = producto_model.get_all(activos_only=True, limit=150)
 
         # Preserve existing selections/quantities
         old_checks = {pid: v.get() for pid, v in self._check_vars.items()}

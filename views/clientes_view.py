@@ -3,12 +3,14 @@ from tkinter import messagebox
 
 import models.cliente as cliente_model
 from views.cliente_detalle import ClienteDetalleDialog
+from utils.ui import debounce
 
 
 class ClientesView(ctk.CTkFrame):
     def __init__(self, master, app):
         super().__init__(master, fg_color="transparent")
         self.app = app
+        self._search_after = None
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(2, weight=1)
         self._build_ui()
@@ -36,7 +38,10 @@ class ClientesView(ctk.CTkFrame):
         ctk.CTkEntry(search_frame, textvariable=self._search_var,
                      placeholder_text="Buscar por nombre, CI, ciudad o correo...").grid(
             row=0, column=0, padx=(0, 8), sticky="ew")
-        self._search_var.trace_add("write", lambda *_: self._load())
+        self._search_var.trace_add(
+            "write",
+            lambda *_: debounce(self, "_search_after", 250, self._load),
+        )
 
         self._show_inactive_var = ctk.BooleanVar(value=False)
         ctk.CTkCheckBox(search_frame, text="Mostrar inactivos",
@@ -68,9 +73,9 @@ class ClientesView(ctk.CTkFrame):
                          text_color="gray60").pack(pady=20)
             return
 
+        counts = cliente_model.get_acumuladas_counts([c["id"] for c in clientes])
         for c in clientes:
-            n_acum = cliente_model.get_count_acumuladas(c["id"])
-            self._make_row(c, n_acum)
+            self._make_row(c, counts.get(c["id"], 0))
 
     def _make_row(self, c: dict, n_acum: int):
         row = ctk.CTkFrame(self._scroll, corner_radius=8)

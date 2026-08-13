@@ -2,12 +2,15 @@ from __future__ import annotations
 from database import get_connection
 
 
-def get_all(activos_only: bool = False) -> list[dict]:
+def get_all(activos_only: bool = False, limit: int | None = 200) -> list[dict]:
     conn = get_connection()
     try:
         where = "WHERE activo=1" if activos_only else ""
+        lim = f" LIMIT {int(limit)}" if limit else ""
         return [dict(r) for r in
-                conn.execute(f"SELECT * FROM clientes {where} ORDER BY nombre").fetchall()]
+                conn.execute(
+                    f"SELECT * FROM clientes {where} ORDER BY nombre{lim}"
+                ).fetchall()]
     finally:
         conn.close()
 
@@ -21,7 +24,7 @@ def get_by_id(cliente_id: int) -> dict | None:
         conn.close()
 
 
-def search(texto: str, activos_only: bool = False) -> list[dict]:
+def search(texto: str, activos_only: bool = False, limit: int = 100) -> list[dict]:
     conn = get_connection()
     try:
         pattern = f"%{texto}%"
@@ -31,8 +34,9 @@ def search(texto: str, activos_only: bool = False) -> list[dict]:
                WHERE (nombre LIKE ? OR apellido LIKE ? OR ciudad LIKE ?
                       OR ci LIKE ? OR correo LIKE ?)
                {activo_clause}
-               ORDER BY nombre""",
-            (pattern, pattern, pattern, pattern, pattern)
+               ORDER BY nombre
+               LIMIT ?""",
+            (pattern, pattern, pattern, pattern, pattern, int(limit))
         ).fetchall()
         return [dict(r) for r in rows]
     finally:
@@ -110,6 +114,49 @@ def get_count_acumuladas(cliente_id: int) -> int:
         conn.close()
 
 
+def get_acumuladas_counts(cliente_ids: list[int] | None = None) -> dict[int, int]:
+    """Map cliente_id -> pending item count in a single query."""
+    conn = get_connection()
+    try:
+        if cliente_ids is not None and not cliente_ids:
+            return {}
+        sql = """
+            SELECT v.cliente_id AS cliente_id, COUNT(*) AS n
+            FROM items_venta iv
+            JOIN ventas v ON iv.venta_id = v.id
+            LEFT JOIN items_despacho id ON iv.id = id.item_venta_id
+            WHERE id.id IS NULL
+        """
+        params: tuple = ()
+        if cliente_ids is not None:
+            placeholders = ",".join("?" * len(cliente_ids))
+            sql += f" AND v.cliente_id IN ({placeholders})"
+            params = tuple(cliente_ids)
+        sql += " GROUP BY v.cliente_id"
+        return {int(r["cliente_id"]): int(r["n"]) for r in conn.execute(sql, params)}
+    finally:
+        conn.close()
+
+
+def get_clientes_con_acumuladas() -> list[dict]:
+    """Only clients that have pending (undispatched) items, with counts."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """SELECT c.*, COUNT(*) AS prendas_acumuladas
+               FROM clientes c
+               JOIN ventas v ON v.cliente_id = c.id
+               JOIN items_venta iv ON iv.venta_id = v.id
+               LEFT JOIN items_despacho id ON iv.id = id.item_venta_id
+               WHERE id.id IS NULL
+               GROUP BY c.id
+               ORDER BY c.nombre"""
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
 def toggle_activo(cliente_id: int) -> None:
     conn = get_connection()
     try:
@@ -123,8 +170,9 @@ def toggle_activo(cliente_id: int) -> None:
 
 
 def get_all_with_acumuladas() -> list[dict]:
-    """All clients with their pending item count."""
-    clientes = get_all()
+    """All clients with their pending item count (single grouped query)."""
+    clientes = get_all(limit=None)
+    counts = get_acumuladas_counts()
     for c in clientes:
-        c["prendas_acumuladas"] = get_count_acumuladas(c["id"])
+        c["prendas_acumuladas"] = counts.get(c["id"], 0)
     return clientes

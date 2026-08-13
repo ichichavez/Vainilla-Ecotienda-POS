@@ -6,6 +6,7 @@ from pathlib import Path
 
 import models.producto as producto_model
 import models.categoria as categoria_model
+from utils.ui import debounce
 
 ASSETS_DIR = Path(__file__).parent.parent / "assets" / "productos"
 
@@ -229,6 +230,7 @@ class ProductosView(ctk.CTkFrame):
     def __init__(self, master, app):
         super().__init__(master, fg_color="transparent")
         self.app = app
+        self._search_after = None
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(3, weight=1)
         self._build_ui()
@@ -254,7 +256,10 @@ class ProductosView(ctk.CTkFrame):
         ctk.CTkEntry(filter_frame, textvariable=self._search_var,
                      placeholder_text="Buscar por nombre, talle o color...").grid(
             row=0, column=0, padx=(0, 8), sticky="ew")
-        self._search_var.trace_add("write", lambda *_: self._load())
+        self._search_var.trace_add(
+            "write",
+            lambda *_: debounce(self, "_search_after", 250, self._load),
+        )
 
         self._cat_var = ctk.StringVar(value="(Todas)")
         self._cat_combo = ctk.CTkComboBox(
@@ -301,9 +306,9 @@ class ProductosView(ctk.CTkFrame):
         activos_only = not self._show_inactive_var.get()
 
         if texto:
-            productos = producto_model.search(texto, activos_only=activos_only)
+            productos = producto_model.search(texto, activos_only=activos_only, limit=150)
         else:
-            productos = producto_model.get_all(activos_only=activos_only)
+            productos = producto_model.get_all(activos_only=activos_only, limit=150)
 
         cat_filter = self._cat_var.get()
         if cat_filter and cat_filter != "(Todas)":

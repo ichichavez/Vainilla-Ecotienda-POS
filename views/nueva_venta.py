@@ -6,6 +6,7 @@ from tkinter import messagebox
 import models.cliente as cliente_model
 import models.producto as producto_model
 import models.venta as venta_model
+from utils.ui import debounce
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -22,6 +23,7 @@ class SelectClienteDialog(ctk.CTkToplevel):
         self.protocol("WM_DELETE_WINDOW", self._cancel)
         self.grab_set()
         self.result = None
+        self._search_after = None
         self._build_ui()
         self._load("")
 
@@ -41,7 +43,13 @@ class SelectClienteDialog(ctk.CTkToplevel):
         ctk.CTkEntry(top, textvariable=self._search_var,
                      placeholder_text="Buscar por nombre, CI, ciudad o correo...").grid(
             row=0, column=0, sticky="ew")
-        self._search_var.trace_add("write", lambda *_: self._load(self._search_var.get()))
+        self._search_var.trace_add(
+            "write",
+            lambda *_: debounce(
+                self, "_search_after", 250,
+                lambda: self._load(self._search_var.get()),
+            ),
+        )
 
         self._scroll = ctk.CTkScrollableFrame(self)
         self._scroll.grid(row=1, column=0, padx=16, pady=(0, 16), sticky="nsew")
@@ -50,7 +58,9 @@ class SelectClienteDialog(ctk.CTkToplevel):
     def _load(self, texto: str):
         for w in self._scroll.winfo_children():
             w.destroy()
-        clientes = cliente_model.search(texto) if texto else cliente_model.get_all()
+        clientes = (cliente_model.search(texto)
+                    if texto.strip() else
+                    cliente_model.get_all(limit=80))
         for c in clientes:
             nombre_completo = " ".join(filter(None, [c["nombre"], c.get("apellido", "")]))
             label = f"{nombre_completo}  —  {c['ciudad']}"
@@ -234,6 +244,7 @@ class NuevaVentaView(ctk.CTkFrame):
         self.cliente: dict | None = None
         self.carrito: list[dict] = []   # [{producto, cantidad}]
         self.forma_pago = ctk.StringVar(value="efectivo")
+        self._search_after = None
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(2, weight=1)
         self._build_ui()
@@ -312,7 +323,10 @@ class NuevaVentaView(ctk.CTkFrame):
         ctk.CTkEntry(search_frame, textvariable=self._search_var,
                      placeholder_text="Buscar por nombre, marca, talle, color o código...").grid(
             row=0, column=0, sticky="ew")
-        self._search_var.trace_add("write", lambda *_: self._filter_products())
+        self._search_var.trace_add(
+            "write",
+            lambda *_: debounce(self, "_search_after", 250, self._filter_products),
+        )
 
         self._prod_scroll = ctk.CTkScrollableFrame(frame)
         self._prod_scroll.grid(row=3, column=0, padx=12, pady=(0, 12), sticky="nsew")
@@ -463,9 +477,15 @@ class NuevaVentaView(ctk.CTkFrame):
 
     def _filter_products(self):
         texto = self._search_var.get().strip()
-        productos = producto_model.search(texto) if texto else producto_model.get_all()
+        productos = (producto_model.search(texto, limit=80)
+                     if texto else
+                     producto_model.get_all(limit=80))
         for w in self._prod_scroll.winfo_children():
             w.destroy()
+        if not productos:
+            ctk.CTkLabel(self._prod_scroll, text="Sin resultados.",
+                         text_color="gray60").pack(pady=16)
+            return
         for p in productos:
             self._make_product_row(p)
 

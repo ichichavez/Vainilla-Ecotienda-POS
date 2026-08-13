@@ -5,6 +5,7 @@ from tkinter import messagebox
 
 import models.producto as producto_model
 import models.compra as compra_model
+from utils.ui import debounce
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -93,6 +94,7 @@ class ComprasView(ctk.CTkFrame):
         super().__init__(master, fg_color="transparent")
         self.app = app
         self.carrito: list[dict] = []   # [{producto, cantidad, precio_compra}]
+        self._search_after = None
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(2, weight=1)
         self._build_ui()
@@ -184,7 +186,10 @@ class ComprasView(ctk.CTkFrame):
         ctk.CTkEntry(search_frame, textvariable=self._search_var,
                      placeholder_text="Buscar producto...").grid(
             row=0, column=0, sticky="ew")
-        self._search_var.trace_add("write", lambda *_: self._filter_products())
+        self._search_var.trace_add(
+            "write",
+            lambda *_: debounce(self, "_search_after", 250, self._filter_products),
+        )
 
         self._prod_scroll = ctk.CTkScrollableFrame(frame)
         self._prod_scroll.grid(row=3, column=0, padx=12, pady=(0, 12), sticky="nsew")
@@ -250,7 +255,9 @@ class ComprasView(ctk.CTkFrame):
 
     def _filter_products(self):
         texto = self._search_var.get().strip()
-        productos = producto_model.search(texto) if texto else producto_model.get_all()
+        productos = (producto_model.search(texto, limit=80)
+                     if texto else
+                     producto_model.get_all(limit=80))
         for w in self._prod_scroll.winfo_children():
             w.destroy()
         for p in productos:

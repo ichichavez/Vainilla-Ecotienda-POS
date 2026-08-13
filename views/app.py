@@ -69,7 +69,7 @@ class App(ctk.CTk):
         self._build_views()
 
         # Navigate to first available view
-        first = next(iter(self.views), None)
+        first = next(iter(self._view_factories), None)
         if first:
             self.show_view(first)
 
@@ -182,16 +182,22 @@ class App(ctk.CTk):
 
     def _build_views(self):
         permisos = self.usuario["permisos"]
+        # Lazy: only create views when first opened (faster startup).
+        self._view_factories: dict[str, object] = {}
         self.views: dict[str, ctk.CTkFrame] = {}
         for view_name, perm_key, _ in NAV_MAP:
             if permisos.get(perm_key):
-                factory = _VIEW_FACTORIES[view_name]
-                self.views[view_name] = factory(self.content, self)
-
-        for view in self.views.values():
-            view.grid(row=0, column=0, sticky="nsew")
+                self._view_factories[view_name] = _VIEW_FACTORIES[view_name]
 
     # ── Navigation ───────────────────────────────────────────────────────────
+
+    def _ensure_view(self, view_name: str) -> ctk.CTkFrame:
+        if view_name not in self.views:
+            factory = self._view_factories[view_name]
+            view = factory(self.content, self)
+            view.grid(row=0, column=0, sticky="nsew")
+            self.views[view_name] = view
+        return self.views[view_name]
 
     def show_view(self, view_name: str, **kwargs):
         for name, btn in self.nav_buttons.items():
@@ -207,12 +213,12 @@ class App(ctk.CTk):
                     text_color=("gray10", "gray90"),
                     font=ctk.CTkFont(size=theme.FONT_BASE),
                 )
-        view = self.views[view_name]
+        view = self._ensure_view(view_name)
         view.tkraise()
         view.refresh(**kwargs)
 
     def navigate_to_cliente(self, cliente_id: int):
-        if "clientes" in self.views:
+        if "clientes" in self._view_factories:
             self.show_view("clientes")
             self.views["clientes"].open_detalle(cliente_id)
 

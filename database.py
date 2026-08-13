@@ -5,9 +5,11 @@ DB_PATH = Path(__file__).parent / "ventas.db"
 
 
 def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
     return conn
 
 
@@ -344,6 +346,30 @@ def init_db():
             "UPDATE plantillas_mensaje "
             "SET contenido = REPLACE(contenido, '{nombre_clienta}', '{nombre_cliente}')"
         )
+        conn.commit()
+    except Exception:
+        pass
+
+    # Índices para consultas frecuentes
+    for stmt in (
+        "CREATE INDEX IF NOT EXISTS idx_ventas_fecha ON ventas(fecha)",
+        "CREATE INDEX IF NOT EXISTS idx_ventas_cliente ON ventas(cliente_id)",
+        "CREATE INDEX IF NOT EXISTS idx_items_venta_venta ON items_venta(venta_id)",
+        "CREATE INDEX IF NOT EXISTS idx_items_venta_producto ON items_venta(producto_id)",
+        "CREATE INDEX IF NOT EXISTS idx_items_despacho_item ON items_despacho(item_venta_id)",
+        "CREATE INDEX IF NOT EXISTS idx_despachos_cliente ON despachos(cliente_id)",
+        "CREATE INDEX IF NOT EXISTS idx_productos_barras ON productos(codigo_barras)",
+        "CREATE INDEX IF NOT EXISTS idx_productos_activo_nombre ON productos(activo, nombre)",
+        "CREATE INDEX IF NOT EXISTS idx_clientes_activo_nombre ON clientes(activo, nombre)",
+        "CREATE INDEX IF NOT EXISTS idx_gastos_fecha ON gastos(fecha)",
+        "CREATE INDEX IF NOT EXISTS idx_compras_fecha ON compras(fecha)",
+        "CREATE INDEX IF NOT EXISTS idx_movimientos_fecha ON movimientos_stock(fecha)",
+    ):
+        try:
+            conn.execute(stmt)
+        except Exception:
+            pass
+    try:
         conn.commit()
     except Exception:
         pass

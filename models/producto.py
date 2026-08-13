@@ -2,14 +2,15 @@ from __future__ import annotations
 from database import get_connection
 
 
-def get_all(activos_only: bool = True) -> list[dict]:
+def get_all(activos_only: bool = True, limit: int | None = 200) -> list[dict]:
     conn = get_connection()
     try:
         where = "WHERE p.activo=1" if activos_only else ""
+        lim = f" LIMIT {int(limit)}" if limit else ""
         q = f"""SELECT p.*, c.nombre as categoria_nombre
                 FROM productos p
                 LEFT JOIN categorias c ON c.id = p.categoria_id
-                {where} ORDER BY p.nombre"""
+                {where} ORDER BY p.nombre{lim}"""
         return [dict(r) for r in conn.execute(q).fetchall()]
     finally:
         conn.close()
@@ -47,7 +48,7 @@ def get_by_codigo_barras(codigo: str) -> dict | None:
         conn.close()
 
 
-def search(texto: str, activos_only: bool = True) -> list[dict]:
+def search(texto: str, activos_only: bool = True, limit: int = 80) -> list[dict]:
     conn = get_connection()
     try:
         pattern = f"%{texto}%"
@@ -59,8 +60,9 @@ def search(texto: str, activos_only: bool = True) -> list[dict]:
                 WHERE (p.nombre LIKE ? OR p.talle LIKE ? OR p.color LIKE ?
                        OR p.marca LIKE ? OR p.codigo_barras LIKE ?)
                 {activo_clause}
-                ORDER BY p.nombre""",
-            (pattern, pattern, pattern, pattern, pattern)
+                ORDER BY p.nombre
+                LIMIT ?""",
+            (pattern, pattern, pattern, pattern, pattern, int(limit))
         ).fetchall()
         return [dict(r) for r in rows]
     finally:

@@ -83,13 +83,17 @@ class DashboardView(ctk.CTkFrame):
         for w in self._pending_scroll.winfo_children():
             w.destroy()
 
-        clientes = cliente_model.get_all()
-        has_pending = False
+        clientes = cliente_model.get_clientes_con_acumuladas()
+        if not clientes:
+            ctk.CTkLabel(
+                self._pending_scroll,
+                text="No hay prendas acumuladas pendientes.",
+                text_color="gray60"
+            ).pack(padx=16, pady=20)
+            return
+
         for c in clientes:
-            n = cliente_model.get_count_acumuladas(c["id"])
-            if n == 0:
-                continue
-            has_pending = True
+            n = c["prendas_acumuladas"]
             row = ctk.CTkFrame(self._pending_scroll, corner_radius=8)
             row.pack(fill="x", padx=4, pady=4)
             row.grid_columnconfigure(1, weight=1)
@@ -118,10 +122,3 @@ class DashboardView(ctk.CTkFrame):
                 font=theme.font(theme.FONT_SM),
                 command=lambda cid=c["id"]: self.app.navigate_to_cliente(cid)
             ).grid(row=0, column=3, padx=10, pady=8)
-
-        if not has_pending:
-            ctk.CTkLabel(
-                self._pending_scroll,
-                text="No hay prendas acumuladas pendientes.",
-                text_color="gray60"
-            ).pack(padx=16, pady=20)
