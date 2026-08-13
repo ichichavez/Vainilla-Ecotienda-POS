@@ -43,8 +43,24 @@ cd Vainilla-Ecotienda-POS
 | `iniciar.bat` | Abre el punto de venta |
 | `crear_acceso_directo.bat` | Crea un acceso directo en el Escritorio |
 | `actualizar.bat` | Trae cambios de GitHub (`git pull`) |
+| `importar.bat` | Importa un respaldo `.db` (solo superadmin; ver abajo) |
 
 La base SQLite (`ventas.db`) se crea sola y **no** se pisa al actualizar.
+
+## Respaldar e importar base de datos
+
+### Respaldar (exportar) — TODO incluido
+- En la app: **💾 Respaldar base** (solo superadmin).
+- Elegís una carpeta; se crea una subcarpeta `Vainilla_respaldo_FECHA` con:
+  - **`ventas.db`** → productos, clientes, ventas, stock, compras, gastos, usuarios, etc.
+  - **`productos/`** → fotos de productos (si hay)
+
+### Importar (restaurar)
+Solo el **superadmin** puede importar.
+
+1. Elegí la **carpeta** del respaldo (recomendado), o solo el archivo `ventas.db`.
+2. Se restauran **todos** los datos de negocio + fotos si están en la carpeta.
+3. En **usuarios**, solo se importan cuentas **superadmin** del respaldo.
 
 ## Estructura
 

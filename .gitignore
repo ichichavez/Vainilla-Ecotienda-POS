@@ -12,6 +12,7 @@ env/
 # Local database and media
 ventas.db
 ventas.db-*
+ventas_backup_*.db
 assets/productos/*
 
 # IDE / tools

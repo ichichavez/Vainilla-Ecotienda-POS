@@ -172,19 +172,35 @@ class App(ctk.CTk):
         )
         self._theme_btn.grid(row=53, column=0, padx=10, pady=2, sticky="ew")
 
-        # ── Backup DB ──
-        ctk.CTkButton(
-            self.sidebar,
-            text="💾  Respaldar base",
-            anchor="w",
-            height=36,
-            corner_radius=8,
-            fg_color="transparent",
-            text_color=("gray10", "gray90"),
-            hover_color=("gray75", "gray25"),
-            font=ctk.CTkFont(size=12),
-            command=self._backup_database,
-        ).grid(row=54, column=0, padx=10, pady=2, sticky="ew")
+        # ── Backup / Import DB (superadmin) ──
+        db_row = 54
+        if self.usuario.get("rol_nombre") == "superadmin":
+            ctk.CTkButton(
+                self.sidebar,
+                text="💾  Respaldar base",
+                anchor="w",
+                height=36,
+                corner_radius=8,
+                fg_color="transparent",
+                text_color=("gray10", "gray90"),
+                hover_color=("gray75", "gray25"),
+                font=ctk.CTkFont(size=12),
+                command=self._backup_database,
+            ).grid(row=db_row, column=0, padx=10, pady=2, sticky="ew")
+            db_row += 1
+            ctk.CTkButton(
+                self.sidebar,
+                text="📥  Importar base",
+                anchor="w",
+                height=36,
+                corner_radius=8,
+                fg_color="transparent",
+                text_color=("gray10", "gray90"),
+                hover_color=("gray75", "gray25"),
+                font=ctk.CTkFont(size=12),
+                command=self._import_database,
+            ).grid(row=db_row, column=0, padx=10, pady=2, sticky="ew")
+            db_row += 1
 
         # ── Logout ──
         ctk.CTkButton(
@@ -198,7 +214,7 @@ class App(ctk.CTk):
             hover_color=("gray75", "gray25"),
             font=ctk.CTkFont(size=12),
             command=self._logout,
-        ).grid(row=55, column=0, padx=10, pady=(2, 14), sticky="ew")
+        ).grid(row=db_row, column=0, padx=10, pady=(2, 14), sticky="ew")
 
     def _build_views(self):
         permisos = self.usuario["permisos"]
@@ -264,26 +280,31 @@ class App(ctk.CTk):
 
     def _backup_database(self):
         from tkinter import filedialog, messagebox
-        from utils.backup import backup_database, backup_product_photos, default_backup_name
+        from utils.backup import backup_full
 
-        path = filedialog.asksaveasfilename(
+        parent = filedialog.askdirectory(
             parent=self,
-            title="Guardar respaldo de la base de datos",
-            defaultextension=".db",
-            initialfile=default_backup_name(),
-            filetypes=[("SQLite DB", "*.db"), ("All files", "*.*")],
+            title="Elegí dónde crear la carpeta de respaldo completo",
         )
-        if not path:
+        if not parent:
             return
         try:
-            dest = backup_database(path)
-            photos = backup_product_photos(Path(path).parent / f"{Path(path).stem}_fotos")
-            extra = ""
-            if photos:
-                extra = f"\n\nFotos de productos:\n{photos}"
+            result = backup_full(parent)
+            c = result["counts"]
+            resumen = (
+                f"Productos: {c.get('productos', 0)}  ·  "
+                f"Clientes: {c.get('clientes', 0)}  ·  "
+                f"Ventas: {c.get('ventas', 0)}  ·  "
+                f"Usuarios: {c.get('usuarios', 0)}"
+            )
+            fotos = ""
+            if result["photos"]:
+                fotos = f"\n\nFotos de productos:\n{result['photos']}"
             messagebox.showinfo(
-                "Respaldo listo",
-                f"Base de datos guardada en:\n{dest}{extra}",
+                "Respaldo completo listo",
+                f"Carpeta creada:\n{result['folder']}\n\n"
+                f"Incluye ventas.db con TODOS los datos:\n{resumen}{fotos}\n\n"
+                "Para restaurar: Importar base y elegí ventas.db o la carpeta entera.",
                 parent=self,
             )
         except Exception as e:
@@ -292,6 +313,67 @@ class App(ctk.CTk):
                 f"No se pudo guardar el respaldo:\n{e}",
                 parent=self,
             )
+
+    def _import_database(self):
+        from tkinter import filedialog, messagebox
+        from utils.backup import import_database
+
+        if self.usuario.get("rol_nombre") != "superadmin":
+            messagebox.showerror(
+                "Sin permiso",
+                "Solo el superadmin puede importar la base de datos.",
+                parent=self,
+            )
+            return
+
+        if not messagebox.askyesno(
+            "Importar base de datos",
+            "Esto reemplazará TODOS los datos actuales (ventas, clientes, productos, etc.)\n"
+            "con los del archivo de respaldo.\n\n"
+            "Usuarios: solo se importan cuentas SUPERADMIN del respaldo.\n"
+            "Vendedores u otros usuarios del respaldo NO se copian.\n\n"
+            "Se guardará un respaldo de seguridad en backups\\ antes de continuar.\n\n"
+            "¿Continuar?",
+            parent=self,
+        ):
+            return
+
+        path = filedialog.askdirectory(
+            parent=self,
+            title="Elegí la carpeta del respaldo (contiene ventas.db)",
+        )
+        if not path:
+            path = filedialog.askopenfilename(
+                parent=self,
+                title="O elegí solo el archivo ventas.db",
+                filetypes=[("SQLite DB", "*.db"), ("All files", "*.*")],
+            )
+        if not path:
+            return
+
+        try:
+            safety, n_admins, photos = import_database(path)
+        except Exception as e:
+            messagebox.showerror(
+                "Error al importar",
+                f"No se pudo importar el respaldo:\n{e}",
+                parent=self,
+            )
+            return
+
+        extra = ""
+        if safety:
+            extra = f"\n\nRespaldo de seguridad:\n{safety}"
+        if photos:
+            extra += f"\n\nFotos restauradas:\n{photos}"
+        messagebox.showinfo(
+            "Importación completa",
+            f"Datos importados correctamente (productos, clientes, ventas, etc.).\n"
+            f"Superadmin importados: {n_admins}{extra}\n\n"
+            "La sesión se cerrará. Volvé a entrar con el superadmin del respaldo.",
+            parent=self,
+        )
+        self._logout()
 
     # ── Logout ───────────────────────────────────────────────────────────────
 

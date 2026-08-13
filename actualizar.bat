@@ -15,7 +15,7 @@ REM Respaldo automatico de la base antes de actualizar
 if exist "ventas.db" (
     echo Respaldando base de datos...
     call .venv\Scripts\activate.bat
-    python -c "from pathlib import Path; from utils.backup import backup_database, default_backup_name; Path('backups').mkdir(exist_ok=True); p=backup_database(Path('backups')/default_backup_name()); print('Respaldo OK:', p)"
+    python -c "from utils.backup import backup_full; r=backup_full('backups'); c=r['counts']; print('Respaldo completo OK:', r['folder']); print('Productos:', c.get('productos',0), 'Clientes:', c.get('clientes',0), 'Ventas:', c.get('ventas',0))"
     if errorlevel 1 (
         echo ADVERTENCIA: no se pudo respaldar. Abortando update.
         pause
