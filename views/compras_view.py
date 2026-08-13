@@ -5,6 +5,7 @@ from tkinter import messagebox
 
 import models.producto as producto_model
 import models.compra as compra_model
+from views.constants import DIRTY_AFTER_STOCK
 from utils.ui import debounce
 
 
@@ -401,4 +402,5 @@ class ComprasView(ctk.CTkFrame):
         )
         messagebox.showinfo(
             "Listo", "Compra registrada y stock actualizado.", parent=self)
+        self.app.mark_data_changed(*DIRTY_AFTER_STOCK)
         self.refresh()

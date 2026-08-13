@@ -107,6 +107,30 @@ def get_items_by_venta(venta_id: int) -> list[dict]:
         conn.close()
 
 
+def get_items_by_venta_ids(venta_ids: list[int]) -> dict[int, list[dict]]:
+    """Batch-load sale line items (avoids N+1 queries)."""
+    if not venta_ids:
+        return {}
+    conn = get_connection()
+    try:
+        placeholders = ",".join("?" * len(venta_ids))
+        rows = conn.execute(
+            f"""SELECT iv.*, p.nombre, p.talle, p.color
+                FROM items_venta iv
+                JOIN productos p ON iv.producto_id = p.id
+                WHERE iv.venta_id IN ({placeholders})
+                ORDER BY iv.venta_id, iv.id""",
+            tuple(venta_ids),
+        ).fetchall()
+        result: dict[int, list[dict]] = {}
+        for row in rows:
+            item = dict(row)
+            result.setdefault(item["venta_id"], []).append(item)
+        return result
+    finally:
+        conn.close()
+
+
 def get_by_cliente(cliente_id: int) -> list[dict]:
     conn = get_connection()
     try:

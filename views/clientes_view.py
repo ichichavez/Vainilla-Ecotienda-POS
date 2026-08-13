@@ -3,7 +3,8 @@ from tkinter import messagebox
 
 import models.cliente as cliente_model
 from views.cliente_detalle import ClienteDetalleDialog
-from utils.ui import debounce
+from views.constants import LIST_BATCH_SIZE
+from utils.ui import debounce, render_in_batches
 
 
 class ClientesView(ctk.CTkFrame):
@@ -53,9 +54,10 @@ class ClientesView(ctk.CTkFrame):
         self._scroll.grid(row=2, column=0, padx=24, pady=(0, 20), sticky="nsew")
         self._scroll.grid_columnconfigure(0, weight=1)
 
-    def refresh(self, **kwargs):
-        self._search_var.set("")
-        self._show_inactive_var.set(False)
+    def refresh(self, force: bool = False, **kwargs):
+        if force:
+            self._search_var.set("")
+            self._show_inactive_var.set(False)
         self._load()
 
     def _load(self):
@@ -74,8 +76,11 @@ class ClientesView(ctk.CTkFrame):
             return
 
         counts = cliente_model.get_acumuladas_counts([c["id"] for c in clientes])
-        for c in clientes:
-            self._make_row(c, counts.get(c["id"], 0))
+        self._load_batch = [(c, counts.get(c["id"], 0)) for c in clientes]
+        render_in_batches(
+            self, self._load_batch, LIST_BATCH_SIZE,
+            lambda pair, _i: self._make_row(pair[0], pair[1]),
+        )
 
     def _make_row(self, c: dict, n_acum: int):
         row = ctk.CTkFrame(self._scroll, corner_radius=8)

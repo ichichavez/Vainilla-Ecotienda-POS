@@ -35,22 +35,30 @@ def get_by_cliente(cliente_id: int) -> list[dict]:
     try:
         rows = conn.execute(
             "SELECT * FROM despachos WHERE cliente_id=? ORDER BY fecha DESC, id DESC",
-            (cliente_id,)
+            (cliente_id,),
         ).fetchall()
-        result = []
-        for row in rows:
+        if not rows:
+            return []
+        despachos = [dict(r) for r in rows]
+        despacho_ids = [d["id"] for d in despachos]
+        placeholders = ",".join("?" * len(despacho_ids))
+        item_rows = conn.execute(
+            f"""SELECT id.despacho_id, iv.id, iv.venta_id, iv.producto_id,
+                       iv.cantidad, iv.precio_unitario,
+                       p.nombre, p.talle, p.color
+                FROM items_despacho id
+                JOIN items_venta iv ON id.item_venta_id = iv.id
+                JOIN productos p ON iv.producto_id = p.id
+                WHERE id.despacho_id IN ({placeholders})""",
+            tuple(despacho_ids),
+        ).fetchall()
+        items_by_despacho: dict[int, list[dict]] = {}
+        for row in item_rows:
             d = dict(row)
-            # attach items
-            items = conn.execute(
-                """SELECT iv.*, p.nombre, p.talle, p.color
-                   FROM items_despacho id
-                   JOIN items_venta iv ON id.item_venta_id = iv.id
-                   JOIN productos p    ON iv.producto_id   = p.id
-                   WHERE id.despacho_id = ?""",
-                (d["id"],)
-            ).fetchall()
-            d["items"] = [dict(i) for i in items]
-            result.append(d)
-        return result
+            did = d.pop("despacho_id")
+            items_by_despacho.setdefault(did, []).append(d)
+        for d in despachos:
+            d["items"] = items_by_despacho.get(d["id"], [])
+        return despachos
     finally:
         conn.close()

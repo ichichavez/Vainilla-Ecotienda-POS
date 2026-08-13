@@ -8,8 +8,12 @@ from urllib.parse import quote
 import models.cliente as cliente_model
 import models.venta as venta_model
 import models.despacho as despacho_model
+import models.cambio as cambio_model
+import models.producto as producto_model
 import models.plantilla_mensaje as plantilla_model
 import models.mensaje_whatsapp as wa_model
+from utils.ui import debounce
+from utils.money import money
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -134,6 +138,236 @@ class DespachoDialog(ctk.CTkToplevel):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Exchange dialog (prenda acumulada → otro producto, sin devolución en efectivo)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class CambioDialog(ctk.CTkToplevel):
+    def __init__(self, master, cliente_id: int, prenda: dict, on_done=None):
+        super().__init__(master)
+        self.title("Cambiar prenda")
+        self.resizable(False, False)
+        self.protocol("WM_DELETE_WINDOW", self._cancel)
+        self.grab_set()
+        self.cliente_id = cliente_id
+        self.prenda = prenda
+        self.on_done = on_done
+        self._selected: dict | None = None
+        self._search_after = None
+        self._build_ui()
+        self._load_productos("")
+        self.update_idletasks()
+        w, h = 560, 640
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        self.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+
+    def _cancel(self):
+        self.grab_release()
+        self.destroy()
+
+    def _prenda_label(self, p: dict) -> str:
+        parts = [p["nombre"]]
+        if p.get("talle"):
+            parts.append(f"T:{p['talle']}")
+        if p.get("color"):
+            parts.append(p["color"])
+        return " · ".join(parts)
+
+    def _build_ui(self):
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(4, weight=1)
+
+        p = self.prenda
+        actual = self._prenda_label(p)
+        ctk.CTkLabel(
+            self,
+            text="Prenda actual (acumulada, sin despachar)",
+            font=ctk.CTkFont(size=13, weight="bold"),
+        ).grid(row=0, column=0, padx=20, pady=(20, 4), sticky="w")
+        ctk.CTkLabel(
+            self,
+            text=f"{actual}  x{p['cantidad']}  —  {money(p['precio_unitario'] * p['cantidad'])}",
+            text_color="gray60",
+        ).grid(row=1, column=0, padx=20, pady=(0, 10), sticky="w")
+
+        ctk.CTkLabel(
+            self,
+            text="Buscar producto de reemplazo",
+            font=ctk.CTkFont(size=13, weight="bold"),
+        ).grid(row=2, column=0, padx=20, pady=(0, 6), sticky="w")
+
+        top = ctk.CTkFrame(self, fg_color="transparent")
+        top.grid(row=3, column=0, padx=20, pady=(0, 6), sticky="ew")
+        top.grid_columnconfigure(0, weight=1)
+
+        self._search_var = ctk.StringVar()
+        ctk.CTkEntry(
+            top,
+            textvariable=self._search_var,
+            placeholder_text="Nombre, talle, color, marca o código…",
+        ).grid(row=0, column=0, sticky="ew")
+        self._search_var.trace_add(
+            "write",
+            lambda *_: debounce(self, "_search_after", 250,
+                                lambda: self._load_productos(self._search_var.get())),
+        )
+
+        self._prod_scroll = ctk.CTkScrollableFrame(self, height=220)
+        self._prod_scroll.grid(row=4, column=0, padx=20, pady=(0, 10), sticky="nsew")
+        self._prod_scroll.grid_columnconfigure(0, weight=1)
+
+        info = ctk.CTkFrame(self, corner_radius=8)
+        info.grid(row=5, column=0, padx=20, pady=(0, 10), sticky="ew")
+        info.grid_columnconfigure(0, weight=1)
+        self._diff_label = ctk.CTkLabel(
+            info,
+            text="Seleccioná el producto nuevo.",
+            text_color="gray60",
+            wraplength=500,
+            justify="left",
+        )
+        self._diff_label.grid(row=0, column=0, padx=12, pady=10, sticky="w")
+
+        self._pago_frame = ctk.CTkFrame(info, fg_color="transparent")
+        self._pago_frame.grid(row=1, column=0, padx=12, pady=(0, 10), sticky="ew")
+        ctk.CTkLabel(self._pago_frame, text="Cobrar diferencia:").pack(side="left")
+        self._pago_var = ctk.StringVar(value="efectivo")
+        ctk.CTkSegmentedButton(
+            self._pago_frame,
+            values=["efectivo", "transferencia"],
+            variable=self._pago_var,
+        ).pack(side="left", padx=(8, 0))
+        self._pago_frame.grid_remove()
+
+        ctk.CTkLabel(self, text="Notas (opcional):").grid(
+            row=6, column=0, padx=20, pady=(0, 4), sticky="w")
+        self._notas = ctk.CTkTextbox(self, height=50)
+        self._notas.grid(row=7, column=0, padx=20, pady=(0, 10), sticky="ew")
+
+        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        btn_frame.grid(row=8, column=0, padx=20, pady=(0, 16), sticky="ew")
+        btn_frame.grid_columnconfigure(0, weight=1)
+        btn_frame.grid_columnconfigure(1, weight=1)
+        ctk.CTkButton(
+            btn_frame, text="Confirmar cambio", height=42,
+            fg_color="#2d6a4f", hover_color="#1b4332",
+            command=self._confirmar,
+        ).grid(row=0, column=0, padx=(0, 6), sticky="ew")
+        ctk.CTkButton(
+            btn_frame, text="Cancelar", height=42,
+            fg_color="transparent", border_width=1,
+            text_color=("gray10", "gray90"),
+            command=self._cancel,
+        ).grid(row=0, column=1, padx=(6, 0), sticky="ew")
+
+    def _load_productos(self, texto: str):
+        for w in self._prod_scroll.winfo_children():
+            w.destroy()
+        productos = (
+            producto_model.search(texto.strip(), limit=80)
+            if texto.strip()
+            else producto_model.get_all(limit=80)
+        )
+        if not productos:
+            ctk.CTkLabel(
+                self._prod_scroll, text="Sin resultados.",
+                text_color="gray60",
+            ).pack(pady=12)
+            return
+        for prod in productos:
+            if prod["id"] == self.prenda["producto_id"]:
+                continue
+            parts = [prod["nombre"]]
+            if prod.get("talle"):
+                parts.append(f"T:{prod['talle']}")
+            if prod.get("color"):
+                parts.append(prod["color"])
+            label = f"{' · '.join(parts)}  —  {money(prod['precio'])}  (stock: {prod['stock']})"
+            btn = ctk.CTkButton(
+                self._prod_scroll,
+                text=label,
+                anchor="w",
+                fg_color="transparent",
+                border_width=1,
+                text_color=("gray10", "gray90"),
+                hover_color=("gray85", "gray25"),
+                command=lambda p=prod: self._select_producto(p),
+            )
+            btn.pack(fill="x", pady=2)
+
+    def _select_producto(self, prod: dict):
+        self._selected = prod
+        cantidad = int(self.prenda["cantidad"])
+        precio_origen = float(self.prenda["precio_unitario"])
+        precio_nuevo = float(prod["precio"])
+        diff_unit = precio_nuevo - precio_origen
+        diff_total = diff_unit * cantidad
+
+        if diff_total > 0.009:
+            self._diff_label.configure(
+                text=(
+                    f"Nuevo: {self._prenda_label(prod)} · {money(prod['precio'])}\n"
+                    f"Diferencia a cobrar: {money(diff_total)} (no se devuelve efectivo si cuesta menos)."
+                ),
+                text_color=("gray10", "gray90"),
+            )
+            self._pago_frame.grid()
+        elif diff_total < -0.009:
+            self._diff_label.configure(
+                text=(
+                    f"Nuevo: {self._prenda_label(prod)} · {money(prod['precio'])}\n"
+                    f"El nuevo cuesta menos. No se devuelve dinero; solo se cambia la prenda."
+                ),
+                text_color="#e9c46a",
+            )
+            self._pago_frame.grid_remove()
+        else:
+            self._diff_label.configure(
+                text=(
+                    f"Nuevo: {self._prenda_label(prod)} · mismo precio. "
+                    "Cambio directo sin cobro adicional."
+                ),
+                text_color="#81c784",
+            )
+            self._pago_frame.grid_remove()
+
+    def _confirmar(self):
+        if not self._selected:
+            messagebox.showwarning(
+                "Atención", "Seleccioná el producto de reemplazo.", parent=self)
+            return
+        cantidad = int(self.prenda["cantidad"])
+        if int(self._selected["stock"]) < cantidad:
+            messagebox.showwarning(
+                "Sin stock",
+                f"Solo hay {self._selected['stock']} unidad(es) disponibles.",
+                parent=self,
+            )
+            return
+        try:
+            cambio_model.registrar(
+                item_venta_id=self.prenda["id"],
+                cliente_id=self.cliente_id,
+                nuevo_producto_id=self._selected["id"],
+                fecha=date.today().isoformat(),
+                notas=self._notas.get("1.0", "end").strip(),
+                forma_pago_diff=self._pago_var.get(),
+            )
+        except cambio_model.CambioError as e:
+            messagebox.showerror("No se pudo cambiar", str(e), parent=self)
+            return
+        messagebox.showinfo(
+            "Listo",
+            "Prenda cambiada correctamente.\n"
+            "Sigue acumulada hasta que se despache.",
+            parent=self,
+        )
+        if self.on_done:
+            self.on_done()
+        self.grab_release()
+        self.destroy()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Plantillas manager dialog
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -251,8 +485,9 @@ class ClienteDetalleDialog(ctk.CTkToplevel):
         self.protocol("WM_DELETE_WINDOW", self._close)
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
+        self._tabs_loaded: set[str] = set()
         self._build_ui()
-        self._load()
+        self._load_info()
 
     def _close(self):
         self.grab_release()
@@ -262,7 +497,7 @@ class ClienteDetalleDialog(ctk.CTkToplevel):
 
     def _build_ui(self):
         # Tabs: Info | Prendas acumuladas | Historial
-        self._tabview = ctk.CTkTabview(self)
+        self._tabview = ctk.CTkTabview(self, command=self._on_tab_changed)
         self._tabview.grid(row=0, column=0, padx=16, pady=16, sticky="nsew")
         self.grid_rowconfigure(0, weight=1)
 
@@ -334,7 +569,13 @@ class ClienteDetalleDialog(ctk.CTkToplevel):
 
         ctk.CTkButton(btn_frame, text="Despachar prendas",
                       fg_color="#e63946", hover_color="#c1121f",
-                      command=self._despachar).pack(side="left")
+                      command=self._despachar).pack(side="left", padx=(0, 8))
+        ctk.CTkLabel(
+            btn_frame,
+            text="Si no le queda, usá Cambiar en cada prenda (sin devolver efectivo).",
+            text_color="gray60",
+            font=ctk.CTkFont(size=11),
+        ).pack(side="left")
 
         self._prendas_scroll = ctk.CTkScrollableFrame(tab)
         self._prendas_scroll.grid(row=1, column=0, sticky="nsew")
@@ -402,7 +643,27 @@ class ClienteDetalleDialog(ctk.CTkToplevel):
 
     # ── Data loading ─────────────────────────────────────────────────────────
 
-    def _load(self):
+    def _on_tab_changed(self, _tab_name: str = ""):
+        tab = self._tabview.get()
+        if tab == "Prendas acumuladas" and tab not in self._tabs_loaded:
+            self._load_prendas()
+            self._tabs_loaded.add(tab)
+        elif tab == "Historial" and tab not in self._tabs_loaded:
+            self._load_historial()
+            self._tabs_loaded.add(tab)
+        elif tab == "WhatsApp" and tab not in self._tabs_loaded:
+            self._load_whatsapp()
+            self._tabs_loaded.add(tab)
+
+    def _reload_after_prenda_action(self):
+        self._load_prendas()
+        self._load_historial()
+        self._tabs_loaded.add("Historial")
+        master = self.master
+        if hasattr(master, "app"):
+            master.app.mark_data_changed("dashboard", "clientes")
+
+    def _load_info(self):
         c = cliente_model.get_by_id(self.cliente_id)
         if not c:
             return
@@ -433,9 +694,10 @@ class ClienteDetalleDialog(ctk.CTkToplevel):
                 hover_color="#1b4332",
             )
 
-        self._load_prendas()
-        self._load_historial()
-        self._load_whatsapp()
+    def _load(self):
+        self._load_info()
+        tab = self._tabview.get()
+        self._on_tab_changed(tab)
 
     def _load_prendas(self):
         for w in self._prendas_scroll.winfo_children():
@@ -472,13 +734,20 @@ class ClienteDetalleDialog(ctk.CTkToplevel):
                          text=f"Gs. {p['precio_unitario'] * p['cantidad']:,.2f}",
                          font=ctk.CTkFont(size=12, weight="bold")).grid(
                 row=0, column=2, padx=12, pady=8, rowspan=2)
+            ctk.CTkButton(
+                row, text="Cambiar", width=90,
+                fg_color="#2d6a4f", hover_color="#1b4332",
+                command=lambda prenda=p: self._cambiar_prenda(prenda),
+            ).grid(row=0, column=3, padx=(0, 12), pady=8, rowspan=2)
 
     def _load_historial(self):
         for w in self._hist_scroll.winfo_children():
             w.destroy()
 
         ventas = venta_model.get_by_cliente(self.cliente_id)
+        items_map = venta_model.get_items_by_venta_ids([v["id"] for v in ventas])
         despachos = despacho_model.get_by_cliente(self.cliente_id)
+        cambios = cambio_model.get_by_cliente(self.cliente_id)
 
         # Merge and sort by date descending
         events = []
@@ -486,6 +755,8 @@ class ClienteDetalleDialog(ctk.CTkToplevel):
             events.append(("venta", v["fecha"], v))
         for d in despachos:
             events.append(("despacho", d["fecha"], d))
+        for c in cambios:
+            events.append(("cambio", c["fecha"], c))
         events.sort(key=lambda x: x[1], reverse=True)
 
         if not events:
@@ -495,11 +766,13 @@ class ClienteDetalleDialog(ctk.CTkToplevel):
 
         for kind, fecha, data in events:
             if kind == "venta":
-                self._make_venta_row(data)
+                self._make_venta_row(data, items_map.get(data["id"], []))
+            elif kind == "cambio":
+                self._make_cambio_row(data)
             else:
                 self._make_despacho_row(data)
 
-    def _make_venta_row(self, v: dict):
+    def _make_venta_row(self, v: dict, items: list[dict] | None = None):
         card = ctk.CTkFrame(self._hist_scroll, corner_radius=8,
                             fg_color=("gray90", "gray20"))
         card.pack(fill="x", pady=4)
@@ -517,7 +790,8 @@ class ClienteDetalleDialog(ctk.CTkToplevel):
             row=0, column=2, padx=12, pady=(8, 2))
 
         # Detail items
-        items = venta_model.get_items_by_venta(v["id"])
+        if items is None:
+            items = venta_model.get_items_by_venta(v["id"])
         for item in items:
             parts = [item["nombre"]]
             if item.get("talle"):
@@ -569,6 +843,50 @@ class ClienteDetalleDialog(ctk.CTkToplevel):
                 padx=12, pady=(2, 8), sticky="w")
         else:
             card.grid_rowconfigure(len(d["items"]) + 1, minsize=8)
+
+    def _make_cambio_row(self, c: dict):
+        def _lbl(nombre, talle, color):
+            parts = [nombre]
+            if talle:
+                parts.append(f"T:{talle}")
+            if color:
+                parts.append(color)
+            return " · ".join(parts)
+
+        card = ctk.CTkFrame(self._hist_scroll, corner_radius=8,
+                            fg_color=("gray88", "gray22"))
+        card.pack(fill="x", pady=4)
+        card.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            card, text="🔄 Cambio de prenda",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#e9c46a",
+        ).grid(row=0, column=0, padx=12, pady=(8, 2), sticky="w")
+        ctk.CTkLabel(card, text=c["fecha"], text_color="gray60").grid(
+            row=0, column=1, padx=8, pady=(8, 2), sticky="w")
+
+        origen = _lbl(c["origen_nombre"], c.get("origen_talle"), c.get("origen_color"))
+        nuevo = _lbl(c["nuevo_nombre"], c.get("nuevo_talle"), c.get("nuevo_color"))
+        ctk.CTkLabel(
+            card,
+            text=f"   {origen}  →  {nuevo}  x{c['cantidad']}",
+            text_color="gray60", font=ctk.CTkFont(size=11),
+        ).grid(row=1, column=0, columnspan=3, padx=12, pady=1, sticky="w")
+
+        extra = []
+        if float(c.get("diferencia") or 0) > 0.009:
+            extra.append(
+                f"Diferencia cobrada: {money(c['diferencia'])} ({c.get('forma_pago_diff')})"
+            )
+        else:
+            extra.append("Sin devolución en efectivo")
+        if c.get("notas"):
+            extra.append(c["notas"])
+        ctk.CTkLabel(
+            card, text="   " + " · ".join(extra),
+            text_color="gray50", font=ctk.CTkFont(size=11),
+        ).grid(row=2, column=0, columnspan=3, padx=12, pady=(2, 8), sticky="w")
 
     def _load_whatsapp(self):
         self._plantillas = plantilla_model.get_all()
@@ -680,11 +998,16 @@ class ClienteDetalleDialog(ctk.CTkToplevel):
         nombre_completo = " ".join(filter(None, [nombre, apellido]))
         self.title(f"Detalle — {nombre_completo}")
 
+    def _cambiar_prenda(self, prenda: dict):
+        dlg = CambioDialog(self, self.cliente_id, prenda,
+                           on_done=self._reload_after_prenda_action)
+        self.wait_window(dlg)
+
     def _despachar(self):
         if not self._prendas:
             messagebox.showinfo("Sin prendas",
                                 "No hay prendas acumuladas para despachar.", parent=self)
             return
         dlg = DespachoDialog(self, self.cliente_id, self._prendas,
-                             on_done=self._load)
+                             on_done=self._reload_after_prenda_action)
         self.wait_window(dlg)

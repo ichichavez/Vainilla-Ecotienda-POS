@@ -80,8 +80,10 @@ class CajaView(ctk.CTkFrame):
         val_label.pack(padx=16, pady=(0, 14), anchor="w")
         return val_label
 
-    def refresh(self, **kwargs):
-        self._fecha_var.set(date.today().isoformat())
+    def refresh(self, force: bool = False, **kwargs):
+        if force or not getattr(self, "_date_initialized", False):
+            self._fecha_var.set(date.today().isoformat())
+            self._date_initialized = True
         self._load()
 
     def _set_date(self, fecha: str):
@@ -103,6 +105,7 @@ class CajaView(ctk.CTkFrame):
 
         # Populate list
         ventas = venta_model.get_by_date(fecha)
+        items_map = venta_model.get_items_by_venta_ids([v["id"] for v in ventas])
         for w in self._scroll.winfo_children():
             w.destroy()
 
@@ -113,9 +116,9 @@ class CajaView(ctk.CTkFrame):
             return
 
         for v in ventas:
-            self._make_venta_card(v)
+            self._make_venta_card(v, items_map.get(v["id"], []))
 
-    def _make_venta_card(self, v: dict):
+    def _make_venta_card(self, v: dict, items: list[dict] | None = None):
         forma = v["forma_pago"]
         if forma == "efectivo":
             pago_color = "#2d6a4f"
@@ -140,7 +143,8 @@ class CajaView(ctk.CTkFrame):
             row=0, column=1, padx=4, pady=(10, 1), sticky="w")
 
         # Items detail
-        items = venta_model.get_items_by_venta(v["id"])
+        if items is None:
+            items = venta_model.get_items_by_venta(v["id"])
         items_text = "  ·  ".join(
             f"{it['nombre']} x{it['cantidad']}" for it in items
         )

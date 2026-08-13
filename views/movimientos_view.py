@@ -5,6 +5,7 @@ import customtkinter as ctk
 
 import models.movimiento_stock as mov_model
 import models.producto as producto_model
+from utils.ui import debounce
 
 
 def _today() -> str:
@@ -20,6 +21,7 @@ TIPO_COLORS = {
     "compra":     "#2d6a4f",
     "ajuste":     "#f4a261",
     "devolucion": "#4fc3f7",
+    "cambio": "#e9c46a",
 }
 
 
@@ -171,6 +173,7 @@ class MovimientosView(ctk.CTkFrame):
     def __init__(self, master, app):
         super().__init__(master, fg_color="transparent")
         self.app = app
+        self._search_after = None
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(2, weight=1)
         self._build_ui()
@@ -200,11 +203,14 @@ class MovimientosView(ctk.CTkFrame):
         ctk.CTkEntry(row1, textvariable=self._search_var,
                      placeholder_text="Buscar producto...").grid(
             row=0, column=0, padx=(0, 8), sticky="ew")
-        self._search_var.trace_add("write", lambda *_: self._load())
+        self._search_var.trace_add(
+            "write",
+            lambda *_: debounce(self, "_search_after", 250, self._load),
+        )
 
         self._tipo_var = ctk.StringVar(value="todos")
         ctk.CTkComboBox(
-            row1, values=["todos", "venta", "compra", "ajuste", "devolucion"],
+            row1, values=["todos", "venta", "compra", "ajuste", "devolucion", "cambio"],
             variable=self._tipo_var, width=130,
             command=lambda _: self._load()
         ).grid(row=0, column=1, padx=(0, 8))
@@ -292,6 +298,12 @@ class MovimientosView(ctk.CTkFrame):
                          text_color="gray50", font=ctk.CTkFont(size=10)).grid(
                 row=0, column=4, padx=(0, 12), pady=10)
 
+    def _after_ajuste(self):
+        self.app.mark_data_changed(
+            "productos", "catalogo", "etiquetas", "reportes", "dashboard",
+        )
+        self._load()
+
     def _nuevo_ajuste(self):
-        dlg = AjusteDialog(self, on_done=self._load)
+        dlg = AjusteDialog(self, on_done=self._after_ajuste)
         self.wait_window(dlg)

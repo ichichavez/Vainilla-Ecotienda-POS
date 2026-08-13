@@ -78,8 +78,10 @@ class CatalogoView(ctk.CTkFrame):
         self._scroll.grid(row=2, column=0, padx=24, pady=(0, 20), sticky="nsew")
         self._scroll.grid_columnconfigure(0, weight=1)
 
-    def refresh(self, **kwargs):
-        self._update_cat_combo()
+    def refresh(self, force: bool = False, **kwargs):
+        if force or not getattr(self, "_cats_loaded", False):
+            self._update_cat_combo()
+            self._cats_loaded = True
         self._load()
 
     def _update_cat_combo(self):
@@ -132,17 +134,11 @@ class CatalogoView(ctk.CTkFrame):
         thumb_frame.grid_propagate(False)
 
         foto_path = p.get("foto_path", "")
-        if foto_path and Path(foto_path).exists():
-            try:
-                from PIL import Image
-                import customtkinter as ctk2
-                img = Image.open(foto_path).resize((52, 52))
-                ctk_img = ctk2.CTkImage(img, size=(52, 52))
-                ctk.CTkLabel(thumb_frame, image=ctk_img, text="").place(
-                    relx=0.5, rely=0.5, anchor="center")
-            except Exception:
-                ctk.CTkLabel(thumb_frame, text="🛍️", font=ctk.CTkFont(size=20)).place(
-                    relx=0.5, rely=0.5, anchor="center")
+        from utils.image_cache import get_thumbnail
+        ctk_img = get_thumbnail(foto_path, 52)
+        if ctk_img:
+            ctk.CTkLabel(thumb_frame, image=ctk_img, text="").place(
+                relx=0.5, rely=0.5, anchor="center")
         else:
             ctk.CTkLabel(thumb_frame, text="🛍️", font=ctk.CTkFont(size=20)).place(
                 relx=0.5, rely=0.5, anchor="center")

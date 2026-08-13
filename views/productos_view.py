@@ -6,7 +6,8 @@ from pathlib import Path
 
 import models.producto as producto_model
 import models.categoria as categoria_model
-from utils.ui import debounce
+from views.constants import LIST_BATCH_SIZE
+from utils.ui import debounce, render_in_batches
 
 ASSETS_DIR = Path(__file__).parent.parent / "assets" / "productos"
 
@@ -289,11 +290,12 @@ class ProductosView(ctk.CTkFrame):
         self._scroll.grid(row=3, column=0, padx=24, pady=(0, 20), sticky="nsew")
         self._scroll.grid_columnconfigure(0, weight=1)
 
-    def refresh(self, **kwargs):
-        self._search_var.set("")
-        self._show_inactive_var.set(False)
+    def refresh(self, force: bool = False, **kwargs):
+        if force:
+            self._search_var.set("")
+            self._show_inactive_var.set(False)
+            self._cat_var.set("(Todas)")
         self._update_cat_combo()
-        self._cat_var.set("(Todas)")
         self._load()
 
     def _update_cat_combo(self):
@@ -323,8 +325,10 @@ class ProductosView(ctk.CTkFrame):
                          text_color="gray60").pack(pady=20)
             return
 
-        for p in productos:
-            self._make_row(p)
+        render_in_batches(
+            self, productos, LIST_BATCH_SIZE,
+            lambda p, _i: self._make_row(p),
+        )
 
     def _make_row(self, p: dict):
         row = ctk.CTkFrame(self._scroll, corner_radius=8)
@@ -396,9 +400,15 @@ class ProductosView(ctk.CTkFrame):
             row=0, column=3, padx=12, pady=12, rowspan=2)
 
     def _nuevo_producto(self):
-        dlg = ProductoFormDialog(self, on_done=self._load)
+        dlg = ProductoFormDialog(self, on_done=self._after_product_change)
         self.wait_window(dlg)
 
     def _editar(self, producto: dict):
-        dlg = ProductoFormDialog(self, producto=producto, on_done=self._load)
+        dlg = ProductoFormDialog(self, producto=producto, on_done=self._after_product_change)
         self.wait_window(dlg)
+
+    def _after_product_change(self):
+        self.app.mark_data_changed(
+            "productos", "catalogo", "etiquetas", "nueva_venta", "reportes",
+        )
+        self._load()

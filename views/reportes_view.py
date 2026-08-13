@@ -153,11 +153,12 @@ class ReportesView(ctk.CTkFrame):
         if not fecha:
             fecha = _today()
         ventas = venta_model.get_by_date(fecha)
+        items_map = venta_model.get_items_by_venta_ids([v["id"] for v in ventas])
         headers = ["Fecha", "Cliente", "Items", "Forma de Pago",
                    "Efectivo", "Transferencia", "Total"]
         rows = []
         for v in ventas:
-            items = venta_model.get_items_by_venta(v["id"])
+            items = items_map.get(v["id"], [])
             items_str = "; ".join(
                 f"{it['nombre']} {it['talle']} {it['color']} x{it['cantidad']}"
                 for it in items
@@ -238,6 +239,7 @@ class ReportesView(ctk.CTkFrame):
         desde = self._rango_desde.get() or _first_of_month()
         hasta = self._rango_hasta.get() or _today()
         ventas = venta_model.get_by_range(desde, hasta)
+        items_map = venta_model.get_items_by_venta_ids([v["id"] for v in ventas])
         headers = ["Fecha", "Cliente", "Items", "Forma de Pago",
                    "Efectivo", "Transferencia", "Total"]
         rows = []
@@ -245,7 +247,7 @@ class ReportesView(ctk.CTkFrame):
         total_transfer = 0.0
         total_general  = 0.0
         for v in ventas:
-            items = venta_model.get_items_by_venta(v["id"])
+            items = items_map.get(v["id"], [])
             items_str = "; ".join(
                 f"{it['nombre']} {it['talle']} {it['color']} x{it['cantidad']}"
                 for it in items
@@ -621,6 +623,6 @@ class ReportesView(ctk.CTkFrame):
 
     # ── refresh (called by App on navigation) ────────────────────────────────
 
-    def refresh(self, **kwargs):
-        self._refresh_caja()
-        self._refresh_inventario()
+    def refresh(self, force: bool = False, **kwargs):
+        # Each report tab has its own "Actualizar" — avoid heavy reload on navigation.
+        pass

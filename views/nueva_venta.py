@@ -6,6 +6,7 @@ from tkinter import messagebox
 import models.cliente as cliente_model
 import models.producto as producto_model
 import models.venta as venta_model
+from views.constants import DIRTY_AFTER_SALE
 from utils.ui import debounce
 
 
@@ -403,15 +404,25 @@ class NuevaVentaView(ctk.CTkFrame):
 
     # ── Refresh ──────────────────────────────────────────────────────────────
 
-    def refresh(self, **kwargs):
+    def refresh(self, force: bool = False, **kwargs):
+        if force:
+            self.cliente = None
+            self.carrito = []
+            self.forma_pago.set("efectivo")
+            self._mixto_frame.grid_remove()
+            self._cliente_label.configure(text="(ninguna seleccionada)", text_color="gray60")
+            self._scan_var.set("")
+            self._search_var.set("")
+        self._filter_products()
+        self._render_cart()
+
+    def _reset_after_sale(self):
         self.cliente = None
         self.carrito = []
         self.forma_pago.set("efectivo")
         self._mixto_frame.grid_remove()
         self._cliente_label.configure(text="(ninguna seleccionada)", text_color="gray60")
         self._scan_var.set("")
-        self._search_var.set("")
-        self._filter_products()
         self._render_cart()
 
     # ── Client actions ───────────────────────────────────────────────────────
@@ -709,4 +720,5 @@ class NuevaVentaView(ctk.CTkFrame):
             monto_transferencia=monto_tr,
         )
         messagebox.showinfo("Listo", "Venta registrada correctamente.", parent=self)
-        self.refresh()
+        self.app.mark_data_changed(*DIRTY_AFTER_SALE)
+        self._reset_after_sale()

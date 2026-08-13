@@ -60,6 +60,11 @@ class App(ctk.CTk):
         self.usuario = usuario
         self._logout_requested = False
         self._theme = "Light"
+        self._current_view: str | None = None
+        self._views_ready: set[str] = set()
+        self._dirty_views: set[str] = set()
+        self._nav_font = ctk.CTkFont(size=theme.FONT_BASE)
+        self._nav_font_active = ctk.CTkFont(size=theme.FONT_BASE, weight="bold")
 
         self.title("Punto de Venta · Analia")
         self.geometry("1200x720")
@@ -206,6 +211,10 @@ class App(ctk.CTk):
 
     # ── Navigation ───────────────────────────────────────────────────────────
 
+    def mark_data_changed(self, *view_names: str) -> None:
+        """Mark views stale so they refresh on next visit."""
+        self._dirty_views.update(view_names)
+
     def _ensure_view(self, view_name: str) -> ctk.CTkFrame:
         if view_name not in self.views:
             factory = self._view_factories[view_name]
@@ -214,28 +223,34 @@ class App(ctk.CTk):
             self.views[view_name] = view
         return self.views[view_name]
 
-    def show_view(self, view_name: str, **kwargs):
+    def show_view(self, view_name: str, force: bool = False, **kwargs):
         for name, btn in self.nav_buttons.items():
             if name == view_name:
                 btn.configure(
                     fg_color=theme.PRIMARY_LIGHT,
                     text_color=theme.PRIMARY_TEXT,
-                    font=ctk.CTkFont(size=theme.FONT_BASE, weight="bold"),
+                    font=self._nav_font_active,
                 )
             else:
                 btn.configure(
                     fg_color="transparent",
                     text_color=("gray10", "gray90"),
-                    font=ctk.CTkFont(size=theme.FONT_BASE),
+                    font=self._nav_font,
                 )
         view = self._ensure_view(view_name)
         view.tkraise()
-        view.refresh(**kwargs)
+        first_visit = view_name not in self._views_ready
+        if force or first_visit or view_name in self._dirty_views:
+            view.refresh(force=force, **kwargs)
+            self._views_ready.add(view_name)
+            self._dirty_views.discard(view_name)
+        self._current_view = view_name
 
     def navigate_to_cliente(self, cliente_id: int):
-        if "clientes" in self._view_factories:
-            self.show_view("clientes")
-            self.views["clientes"].open_detalle(cliente_id)
+        if "clientes" not in self._view_factories:
+            return
+        self.show_view("clientes")
+        self.views["clientes"].open_detalle(cliente_id)
 
     # ── Theme ────────────────────────────────────────────────────────────────
 

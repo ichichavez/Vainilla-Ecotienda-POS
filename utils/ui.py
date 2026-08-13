@@ -18,3 +18,13 @@ def debounce(widget, after_id_attr: str, delay_ms: int, callback):
         except Exception:
             pass
     setattr(widget, after_id_attr, widget.after(delay_ms, callback))
+
+
+def render_in_batches(widget, items, batch_size: int, render_fn, start: int = 0):
+    """Render list items in chunks so the UI stays responsive."""
+    end = min(start + batch_size, len(items))
+    for i in range(start, end):
+        render_fn(items[i], i)
+    if end < len(items):
+        widget.after(1, lambda: render_in_batches(
+            widget, items, batch_size, render_fn, end))

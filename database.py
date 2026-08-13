@@ -364,12 +364,43 @@ def init_db():
         "CREATE INDEX IF NOT EXISTS idx_gastos_fecha ON gastos(fecha)",
         "CREATE INDEX IF NOT EXISTS idx_compras_fecha ON compras(fecha)",
         "CREATE INDEX IF NOT EXISTS idx_movimientos_fecha ON movimientos_stock(fecha)",
+        "CREATE INDEX IF NOT EXISTS idx_movimientos_producto ON movimientos_stock(producto_id)",
+        "CREATE INDEX IF NOT EXISTS idx_items_despacho_despacho ON items_despacho(despacho_id)",
+        "CREATE INDEX IF NOT EXISTS idx_mensajes_whatsapp_cliente ON mensajes_whatsapp(cliente_id)",
+        "CREATE INDEX IF NOT EXISTS idx_cambios_cliente ON cambios(cliente_id)",
+        "CREATE INDEX IF NOT EXISTS idx_productos_categoria ON productos(categoria_id)",
     ):
         try:
             conn.execute(stmt)
         except Exception:
             pass
     try:
+        conn.commit()
+    except Exception:
+        pass
+
+    # Migración: cambios de prendas acumuladas
+    try:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS cambios (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                cliente_id          INTEGER NOT NULL,
+                fecha               TEXT    NOT NULL,
+                item_venta_id       INTEGER NOT NULL,
+                producto_origen_id  INTEGER NOT NULL,
+                producto_nuevo_id   INTEGER NOT NULL,
+                cantidad            INTEGER NOT NULL DEFAULT 1,
+                precio_origen       REAL    NOT NULL,
+                precio_nuevo        REAL    NOT NULL,
+                diferencia          REAL    NOT NULL DEFAULT 0,
+                forma_pago_diff     TEXT    NOT NULL DEFAULT '',
+                notas               TEXT    NOT NULL DEFAULT '',
+                FOREIGN KEY (cliente_id) REFERENCES clientes(id),
+                FOREIGN KEY (item_venta_id) REFERENCES items_venta(id),
+                FOREIGN KEY (producto_origen_id) REFERENCES productos(id),
+                FOREIGN KEY (producto_nuevo_id) REFERENCES productos(id)
+            );
+        """)
         conn.commit()
     except Exception:
         pass
