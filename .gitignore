@@ -21,8 +21,9 @@ assets/productos/*
 *.swp
 .DS_Store
 
-# Exports / temp
+# Exports / temp / backups
 *.xlsx
 !requirements.txt
 *.pdf
 *.log
+backups/

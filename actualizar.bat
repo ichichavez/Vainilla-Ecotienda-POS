@@ -9,6 +9,21 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 echo === Actualizando desde GitHub ===
+echo.
+
+REM Respaldo automatico de la base antes de actualizar
+if exist "ventas.db" (
+    echo Respaldando base de datos...
+    call .venv\Scripts\activate.bat
+    python -c "from pathlib import Path; from utils.backup import backup_database, default_backup_name; Path('backups').mkdir(exist_ok=True); p=backup_database(Path('backups')/default_backup_name()); print('Respaldo OK:', p)"
+    if errorlevel 1 (
+        echo ADVERTENCIA: no se pudo respaldar. Abortando update.
+        pause
+        exit /b 1
+    )
+    echo.
+)
+
 where git >nul 2>&1
 if errorlevel 1 (
     echo ERROR: Git no esta instalado.
@@ -27,5 +42,7 @@ if errorlevel 1 (
 call .venv\Scripts\activate.bat
 pip install -r requirements.txt
 echo.
-echo Actualizacion completa. La base de datos local no se modifica.
+echo Actualizacion completa.
+echo La base de datos local NO se modifica.
+echo Respaldo (si habia datos) en la carpeta backups\
 pause

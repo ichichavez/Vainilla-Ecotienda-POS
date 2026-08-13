@@ -1,4 +1,5 @@
 from __future__ import annotations
+from pathlib import Path
 import customtkinter as ctk
 
 import views.theme as theme
@@ -166,6 +167,20 @@ class App(ctk.CTk):
         )
         self._theme_btn.grid(row=53, column=0, padx=10, pady=2, sticky="ew")
 
+        # ── Backup DB ──
+        ctk.CTkButton(
+            self.sidebar,
+            text="💾  Respaldar base",
+            anchor="w",
+            height=36,
+            corner_radius=8,
+            fg_color="transparent",
+            text_color=("gray10", "gray90"),
+            hover_color=("gray75", "gray25"),
+            font=ctk.CTkFont(size=12),
+            command=self._backup_database,
+        ).grid(row=54, column=0, padx=10, pady=2, sticky="ew")
+
         # ── Logout ──
         ctk.CTkButton(
             self.sidebar,
@@ -178,7 +193,7 @@ class App(ctk.CTk):
             hover_color=("gray75", "gray25"),
             font=ctk.CTkFont(size=12),
             command=self._logout,
-        ).grid(row=54, column=0, padx=10, pady=(2, 14), sticky="ew")
+        ).grid(row=55, column=0, padx=10, pady=(2, 14), sticky="ew")
 
     def _build_views(self):
         permisos = self.usuario["permisos"]
@@ -231,6 +246,37 @@ class App(ctk.CTk):
             self._theme_btn.configure(text="🌙  Modo oscuro")
         else:
             self._theme_btn.configure(text="☀️  Modo claro")
+
+    def _backup_database(self):
+        from tkinter import filedialog, messagebox
+        from utils.backup import backup_database, backup_product_photos, default_backup_name
+
+        path = filedialog.asksaveasfilename(
+            parent=self,
+            title="Guardar respaldo de la base de datos",
+            defaultextension=".db",
+            initialfile=default_backup_name(),
+            filetypes=[("SQLite DB", "*.db"), ("All files", "*.*")],
+        )
+        if not path:
+            return
+        try:
+            dest = backup_database(path)
+            photos = backup_product_photos(Path(path).parent / f"{Path(path).stem}_fotos")
+            extra = ""
+            if photos:
+                extra = f"\n\nFotos de productos:\n{photos}"
+            messagebox.showinfo(
+                "Respaldo listo",
+                f"Base de datos guardada en:\n{dest}{extra}",
+                parent=self,
+            )
+        except Exception as e:
+            messagebox.showerror(
+                "Error al respaldar",
+                f"No se pudo guardar el respaldo:\n{e}",
+                parent=self,
+            )
 
     # ── Logout ───────────────────────────────────────────────────────────────
 
