@@ -99,6 +99,8 @@ class App(ctk.CTk):
         self.content.grid_columnconfigure(0, weight=1)
 
     def _build_sidebar(self):
+        self.sidebar.grid_rowconfigure(2, weight=1)
+
         # ── Logo ──
         logo_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         logo_frame.grid(row=0, column=0, padx=20, pady=(24, 16), sticky="w")
@@ -116,16 +118,24 @@ class App(ctk.CTk):
         ).grid(row=1, column=0, columnspan=2, sticky="w")
 
         ctk.CTkFrame(self.sidebar, height=1, fg_color="gray30").grid(
-            row=2, column=0, padx=16, pady=(0, 8), sticky="ew")
+            row=1, column=0, padx=16, pady=(0, 8), sticky="ew")
 
-        # ── Nav buttons (only permitted views) ──
+        # ── Nav buttons (scrollable when menu is taller than window) ──
+        self._nav_scroll = ctk.CTkScrollableFrame(
+            self.sidebar,
+            fg_color="transparent",
+            scrollbar_button_color=("gray70", "gray30"),
+            scrollbar_button_hover_color=("gray60", "gray40"),
+        )
+        self._nav_scroll.grid(row=2, column=0, padx=0, pady=0, sticky="nsew")
+        self._nav_scroll.grid_columnconfigure(0, weight=1)
+
         permisos = self.usuario["permisos"]
         self.nav_buttons: dict[str, ctk.CTkButton] = {}
-        nav_row = 3
         for view_name, perm_key, label in NAV_MAP:
             if permisos.get(perm_key):
                 btn = ctk.CTkButton(
-                    self.sidebar,
+                    self._nav_scroll,
                     text=label,
                     anchor="w",
                     height=40,
@@ -136,19 +146,19 @@ class App(ctk.CTk):
                     font=ctk.CTkFont(size=13),
                     command=lambda v=view_name: self.show_view(v),
                 )
-                btn.grid(row=nav_row, column=0, padx=10, pady=1, sticky="ew")
+                btn.pack(fill="x", padx=10, pady=1)
                 self.nav_buttons[view_name] = btn
-                nav_row += 1
 
-        # ── Spacer ──
-        self.sidebar.grid_rowconfigure(50, weight=1)
+        # ── Footer (fixed at bottom) ──
+        footer = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        footer.grid(row=3, column=0, sticky="ew")
+        footer.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkFrame(self.sidebar, height=1, fg_color="gray30").grid(
-            row=51, column=0, padx=16, pady=(0, 8), sticky="ew")
+        ctk.CTkFrame(footer, height=1, fg_color="gray30").grid(
+            row=0, column=0, padx=16, pady=(0, 8), sticky="ew")
 
-        # ── User info ──
-        user_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        user_frame.grid(row=52, column=0, padx=14, pady=(0, 4), sticky="ew")
+        user_frame = ctk.CTkFrame(footer, fg_color="transparent")
+        user_frame.grid(row=1, column=0, padx=14, pady=(0, 4), sticky="ew")
         user_frame.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(user_frame, text=self.usuario["username"],
                      font=ctk.CTkFont(size=12, weight="bold"), anchor="w").grid(
@@ -157,9 +167,8 @@ class App(ctk.CTk):
                      font=ctk.CTkFont(size=10), text_color="gray60", anchor="w").grid(
             row=1, column=0, sticky="w")
 
-        # ── Theme toggle ──
         self._theme_btn = ctk.CTkButton(
-            self.sidebar,
+            footer,
             text="🌙  Modo oscuro",
             anchor="w",
             height=36,
@@ -170,13 +179,12 @@ class App(ctk.CTk):
             font=ctk.CTkFont(size=12),
             command=self._toggle_theme,
         )
-        self._theme_btn.grid(row=53, column=0, padx=10, pady=2, sticky="ew")
+        self._theme_btn.grid(row=2, column=0, padx=10, pady=2, sticky="ew")
 
-        # ── Backup / Import DB (superadmin) ──
-        db_row = 54
+        footer_row = 3
         if self.usuario.get("rol_nombre") == "superadmin":
             ctk.CTkButton(
-                self.sidebar,
+                footer,
                 text="💾  Respaldar base",
                 anchor="w",
                 height=36,
@@ -186,10 +194,10 @@ class App(ctk.CTk):
                 hover_color=("gray75", "gray25"),
                 font=ctk.CTkFont(size=12),
                 command=self._backup_database,
-            ).grid(row=db_row, column=0, padx=10, pady=2, sticky="ew")
-            db_row += 1
+            ).grid(row=footer_row, column=0, padx=10, pady=2, sticky="ew")
+            footer_row += 1
             ctk.CTkButton(
-                self.sidebar,
+                footer,
                 text="📥  Importar base",
                 anchor="w",
                 height=36,
@@ -199,12 +207,11 @@ class App(ctk.CTk):
                 hover_color=("gray75", "gray25"),
                 font=ctk.CTkFont(size=12),
                 command=self._import_database,
-            ).grid(row=db_row, column=0, padx=10, pady=2, sticky="ew")
-            db_row += 1
+            ).grid(row=footer_row, column=0, padx=10, pady=2, sticky="ew")
+            footer_row += 1
 
-        # ── Logout ──
         ctk.CTkButton(
-            self.sidebar,
+            footer,
             text="🚪  Cerrar sesión",
             anchor="w",
             height=36,
@@ -214,7 +221,7 @@ class App(ctk.CTk):
             hover_color=("gray75", "gray25"),
             font=ctk.CTkFont(size=12),
             command=self._logout,
-        ).grid(row=db_row, column=0, padx=10, pady=(2, 14), sticky="ew")
+        ).grid(row=footer_row, column=0, padx=10, pady=(2, 14), sticky="ew")
 
     def _build_views(self):
         permisos = self.usuario["permisos"]

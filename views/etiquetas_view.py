@@ -1,9 +1,12 @@
 from __future__ import annotations
+import os
+from datetime import datetime
+from pathlib import Path
 from tkinter import messagebox, filedialog
 import customtkinter as ctk
 
 import models.producto as producto_model
-from utils.label_pdf import generate_labels_pdf
+from utils.label_pdf import REPORTLAB_AVAILABLE, generate_labels_pdf
 from utils.ui import debounce
 
 
@@ -190,28 +193,87 @@ class EtiquetasView(ctk.CTkFrame):
             for pid, v in self._check_vars.items()
             if v.get()
         )
-        self._info_label.configure(text=f"{total} etiqueta(s) seleccionada(s)")
+        self._info_label.configure(
+            text=f"{total} etiqueta(s) seleccionada(s)",
+            text_color="gray60",
+        )
+
+    def _dialog_root(self):
+        root = self.winfo_toplevel()
+        root.lift()
+        root.attributes("-topmost", True)
+        root.after(200, lambda: root.attributes("-topmost", False))
+        root.update_idletasks()
+        return root
 
     def _generar_pdf(self):
+        root = self._dialog_root()
+
+        if not REPORTLAB_AVAILABLE:
+            messagebox.showerror(
+                "Falta reportlab",
+                "No está instalada la librería para generar PDF.\n\n"
+                "Ejecutá instalar.bat o, en la terminal del proyecto:\n"
+                "  .venv\\Scripts\\pip install reportlab",
+                parent=root,
+            )
+            return
+
         items = [
             {"producto": p, "cantidad": self._cant_vars[p["id"]].get()}
             for p in self._productos
             if self._check_vars.get(p["id"], ctk.BooleanVar()).get()
         ]
         if not items:
-            messagebox.showwarning("Atención",
-                                   "Seleccioná al menos un producto.", parent=self)
+            messagebox.showwarning(
+                "Atención",
+                "Seleccioná al menos un producto.",
+                parent=root,
+            )
             return
+
+        exports_dir = Path(__file__).resolve().parent.parent / "exports"
+        exports_dir.mkdir(exist_ok=True)
+        default_name = f"etiquetas_{datetime.now().strftime('%Y-%m-%d_%H%M')}.pdf"
+
         path = filedialog.asksaveasfilename(
+            parent=root,
+            title="Guardar etiquetas PDF",
+            initialdir=str(exports_dir),
+            initialfile=default_name,
             defaultextension=".pdf",
-            filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")],
-            initialfile="etiquetas",
-            parent=self,
+            filetypes=[("PDF", "*.pdf"), ("Todos los archivos", "*.*")],
         )
         if not path:
             return
+
+        total = sum(i["cantidad"] for i in items)
+        self._info_label.configure(text="Generando PDF...", text_color="#f4a261")
+        self.update_idletasks()
+
         try:
             generate_labels_pdf(path, items)
-            messagebox.showinfo("Listo", f"PDF generado en:\n{path}", parent=self)
         except Exception as e:
-            messagebox.showerror("Error", f"No se pudo generar el PDF:\n{e}", parent=self)
+            self._update_info()
+            messagebox.showerror(
+                "Error",
+                f"No se pudo generar el PDF:\n{e}",
+                parent=root,
+            )
+            return
+
+        self._info_label.configure(
+            text=f"PDF listo ({total} etiquetas): {path}",
+            text_color="#2d6a4f",
+        )
+        messagebox.showinfo(
+            "PDF generado",
+            f"Se crearon {total} etiqueta(s).\n\n"
+            f"Archivo guardado en:\n{path}\n\n"
+            "Se abrirá automáticamente para imprimir o revisar.",
+            parent=root,
+        )
+        try:
+            os.startfile(path)
+        except OSError:
+            pass

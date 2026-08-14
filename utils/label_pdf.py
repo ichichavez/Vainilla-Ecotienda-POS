@@ -6,9 +6,10 @@ try:
     from reportlab.lib import colors
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
-    from reportlab.graphics.barcode.code128 import Code128Barcode
+    from reportlab.graphics.barcode.code128 import Code128
     REPORTLAB_AVAILABLE = True
 except ImportError:
+    Code128 = None  # type: ignore[misc, assignment]
     REPORTLAB_AVAILABLE = False
 
 LABEL_COLS = 3
@@ -108,10 +109,10 @@ def _make_label(prod: dict, col_w: float) -> list:
 
     if codigo:
         try:
-            bc = Code128Barcode(
+            bc = Code128(
                 codigo,
                 barHeight=7 * mm,
-                barWidth=0.6,
+                barWidth=0.25 * mm,
                 quiet=0,
             )
             bc.hAlign = "CENTER"
